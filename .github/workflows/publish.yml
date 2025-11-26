@@ -18,7 +18,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+          registry-url: "https://registry.npmjs.org"
 
       - run: bun install --frozen-lockfile
+      - run: bunx npm install -g npm@latest
       # tests and builds are in the prepublishOnly script
       - run: bunx npm publish --provenance
