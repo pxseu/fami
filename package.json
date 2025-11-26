@@ -1,0 +1,49 @@
+{
+	"name": "fami",
+	"version": "1.0.0",
+	"description": "RFC 6265bis-21 compliant cookie parsing and serialization library",
+	"type": "module",
+	"author": "pxseu",
+	"repository": "git+https://github.com/pxseu/pxseu.git",
+	"exports": {
+		"./package.json": "./package.json",
+		".": {
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
+		}
+	},
+	"scripts": {
+		"build": "tsup",
+		"test": "bun test",
+		"prepublishOnly": "bun run build && bun test"
+	},
+	"keywords": [
+		"cookie",
+		"cookies",
+		"parser",
+		"serialize",
+		"rfc6265",
+		"http",
+		"headers"
+	],
+	"devDependencies": {
+		"@types/bun": "latest",
+		"tsup": "^8.5.1"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"peerDependenciesMeta": {
+		"typescript": {
+			"optional": true
+		}
+	},
+	"files": [
+		"package.json",
+		"README.md",
+		"dist"
+	],
+	"bugs": {
+		"url": "https://github.com/pxseu/fami/issues"
+	}
+}

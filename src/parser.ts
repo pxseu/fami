@@ -1,0 +1,120 @@
+import {
+	capitalize,
+	decodeCookieValue,
+	encodeCookieValue,
+	formatHttpDate,
+	isValidCookieName,
+	lowercase,
+	VALID_PRIORITY_VALUES,
+	VALID_SAME_SITE_VALUES,
+} from "./helpers";
+import type { CookieAttributes, Cookies } from "./types";
+
+const COOKIE_SEPARATORS = /[;,]/;
+const NAME_VALUE_MATCHER = /^([^=]+)=(.*)$/;
+
+/**
+ * Parses a Cookie header value (multiple cookies from client) into a Cookies object
+ *
+ * @param cookieHeader The Cookie header value to parse
+ * @returns Cookies object with cookie name as key and Cookie object as value
+ */
+export function parse(cookieHeader: string | undefined): Cookies {
+	if (!cookieHeader || typeof cookieHeader !== "string") {
+		return {};
+	}
+
+	const cookies: Cookies = {};
+
+	const parts = cookieHeader.split(COOKIE_SEPARATORS);
+
+	for (const part of parts) {
+		const nameValueMatch = part.match(NAME_VALUE_MATCHER);
+		if (!nameValueMatch) continue;
+
+		const [, name, value] = nameValueMatch;
+		const trimmedName = name?.trim();
+
+		if (!trimmedName || !isValidCookieName(trimmedName)) {
+			continue;
+		}
+
+		// Trim whitespace from value before processing (RFC 6265 Section 4.2.1)
+		cookies[trimmedName] = decodeCookieValue((value || "").trim());
+	}
+
+	return cookies;
+}
+
+/**
+ * Serializes a cookie object to a Set-Cookie header value
+ *
+ * @param cookie The cookie object to serialize
+ * @returns Set-Cookie header value string
+ */
+export function serialize(
+	name: string,
+	value: string,
+	attributes?: CookieAttributes,
+): string {
+	if (!name) {
+		throw new Error("Cookie name is required");
+	}
+
+	if (!isValidCookieName(name)) {
+		throw new Error("Invalid cookie name");
+	}
+
+	let result = `${name}=${encodeCookieValue(value || "")}`;
+
+	if (attributes?.expires) {
+		result += `; Expires=${formatHttpDate(attributes.expires)}`;
+	}
+
+	if (typeof attributes?.maxAge === "number" && attributes.maxAge >= 0) {
+		result += `; Max-Age=${attributes.maxAge}`;
+	}
+
+	if (attributes?.domain) {
+		result += `; Domain=${attributes.domain}`;
+	}
+
+	if (attributes?.path) {
+		result += `; Path=${attributes.path}`;
+	}
+
+	if (attributes?.secure) {
+		result += "; Secure";
+	}
+
+	if (attributes?.httpOnly) {
+		result += "; HttpOnly";
+	}
+
+	if (attributes?.partitioned) {
+		result += "; Partitioned";
+	}
+
+	if (attributes?.priority) {
+		const lower = lowercase(attributes.priority);
+
+		if (!VALID_PRIORITY_VALUES.includes(lower)) {
+			throw new Error(
+				`Invalid priority value: ${lower}. Must be one of: ${VALID_PRIORITY_VALUES}`,
+			);
+		}
+		result += `; Priority=${capitalize(lower)}`;
+	}
+
+	if (attributes?.sameSite) {
+		const lower = lowercase(attributes.sameSite);
+		if (!VALID_SAME_SITE_VALUES.includes(lower)) {
+			throw new Error(
+				`Invalid SameSite value: ${lower}. Must be one of: ${VALID_SAME_SITE_VALUES}`,
+			);
+		}
+		result += `; SameSite=${capitalize(lower)}`;
+	}
+
+	return result;
+}

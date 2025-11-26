@@ -1,0 +1,10 @@
+# Development files
+.cursor
+.github
+*.test.ts
+tests/
+src/
+build.ts
+tsconfig.json
+tsconfig.build.json
+bun.lock
