@@ -13,12 +13,20 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      - name: Get tag data
+        id: tag
+        run: |
+          echo "tag_name=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+
+          if [[ ${{ github.event.ref }} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]]; then
+            echo "pre_release=true" >> $GITHUB_OUTPUT
+          fi
+
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
         with:
           node-version: "latest"
           registry-url: "https://registry.npmjs.org"
-
       - name: Update npm
         run: npm install -g npm@latest
 
@@ -28,5 +36,11 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - run: bun install --frozen-lockfile
-      # tests and builds are in the prepublishOnly script
-      - run: npm publish --provenance
+      - run: bun run test
+      - run: bun run build
+      - run: bun pm pack
+      - run: |
+          FILE_NAME=$(ls -1 *.tgz | head -n 1)
+          echo "FILE_NAME=$FILE_NAME" >> $GITHUB_ENV
+      - run: npm publish $FILE_NAME --provenance --ignore-scripts
+      - run: gh release create ${{ steps.tag.outputs.tag_name }} $FILE_NAME --generate-notes
