@@ -20,7 +20,7 @@ export const isValidCookieName = (name: string): boolean =>
 
 const ESCAPE_CHARACTERS = /\\(.)/g;
 
-export const unquoteCookieValue = (value: string): string => {
+const unquoteCookieValue = (value: string): string => {
 	if (value.startsWith('"') && value.endsWith('"')) {
 		// Unescape \" and \\ sequences
 		return value.slice(1, -1).replace(ESCAPE_CHARACTERS, "$1");
