@@ -28,7 +28,8 @@
 	],
 	"devDependencies": {
 		"@types/bun": "latest",
-		"tsup": "^8.5.1"
+		"tsup": "^8.5.1",
+		"typescript": "^5"
 	},
 	"peerDependencies": {
 		"typescript": "^5"
