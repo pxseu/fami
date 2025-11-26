@@ -1,6 +1,6 @@
 {
 	"name": "fami",
-	"version": "1.0.6",
+	"version": "1.0.7",
 	"description": "RFC 6265bis-21 compliant cookie parsing and serialization library",
 	"type": "module",
 	"author": "pxseu",
