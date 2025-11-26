@@ -24,17 +24,17 @@ describe("helpers", () => {
 		});
 
 		test("throws InvalidDateError for null", () => {
-			// @ts-expect-error - Testing error case
+			// @ts-expect-error
 			expect(() => formatHttpDate(null)).toThrow(InvalidDateError);
 		});
 
 		test("throws InvalidDateError for undefined", () => {
-			// @ts-expect-error - Testing error case
+			// @ts-expect-error
 			expect(() => formatHttpDate(undefined)).toThrow(InvalidDateError);
 		});
 
 		test("throws InvalidDateError for non-Date object", () => {
-			// @ts-expect-error - Testing error case
+			// @ts-expect-error
 			expect(() => formatHttpDate("2021-01-01")).toThrow(InvalidDateError);
 		});
 	});
