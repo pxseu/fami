@@ -48,7 +48,7 @@ export type CookieAttributes = Partial<{
 	/**
 	 *  Enables Partitioned Cookies (CHIPS). This is not available in all browsers yet.
 	 *
-	 *  @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie#partitioned
+	 *  @see https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers/Set-Cookie#partitioned
 	 *  @see https://developer.mozilla.org/docs/Web/Privacy/Guides/Privacy_sandbox/Partitioned_cookies
 	 */
 	partitioned: boolean;
