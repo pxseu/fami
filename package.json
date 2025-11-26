@@ -6,7 +6,7 @@
 	"author": "pxseu",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/pxseu/fami.git"
+		"url": "git+https://github.com/pxseu/fami.git"
 	},
 	"exports": {
 		"./package.json": "./package.json",
