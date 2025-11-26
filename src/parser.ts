@@ -20,7 +20,8 @@ const NAME_VALUE_MATCHER = /^([^=]+)=(.*)$/;
  * @param cookieHeader The Cookie header value to parse
  * @returns Cookies object with cookie name as key and Cookie object as value
  */
-export function parse(cookieHeader: string | undefined): Cookies {
+export function parse(cookieHeader: string | null | undefined): Cookies {
+	// explicity accept null and undefined since the Cookie header is optional
 	if (!cookieHeader || typeof cookieHeader !== "string") {
 		return {};
 	}
