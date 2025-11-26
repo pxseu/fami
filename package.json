@@ -16,6 +16,7 @@
 		}
 	},
 	"scripts": {
+		"prebuild": "rm -rf dist",
 		"build": "tsup",
 		"test": "bun test",
 		"prepublishOnly": "bun run build && bun test"

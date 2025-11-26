@@ -1,3 +1,4 @@
+import { InvalidAttributeError, InvalidNameError } from "./errors";
 import {
 	capitalize,
 	decodeCookieValue,
@@ -57,12 +58,8 @@ export function serialize(
 	value: string,
 	attributes?: CookieAttributes,
 ): string {
-	if (!name) {
-		throw new Error("Cookie name is required");
-	}
-
-	if (!isValidCookieName(name)) {
-		throw new Error("Invalid cookie name");
+	if (!name || !isValidCookieName(name)) {
+		throw new InvalidNameError(name);
 	}
 
 	let result = `${name}=${encodeCookieValue(value || "")}`;
@@ -99,9 +96,7 @@ export function serialize(
 		const lower = lowercase(attributes.priority);
 
 		if (!VALID_PRIORITY_VALUES.includes(lower)) {
-			throw new Error(
-				`Invalid priority value: ${lower}. Must be one of: ${VALID_PRIORITY_VALUES}`,
-			);
+			throw new InvalidAttributeError("priority", lower, VALID_PRIORITY_VALUES);
 		}
 		result += `; Priority=${capitalize(lower)}`;
 	}
@@ -109,8 +104,10 @@ export function serialize(
 	if (attributes?.sameSite) {
 		const lower = lowercase(attributes.sameSite);
 		if (!VALID_SAME_SITE_VALUES.includes(lower)) {
-			throw new Error(
-				`Invalid SameSite value: ${lower}. Must be one of: ${VALID_SAME_SITE_VALUES}`,
+			throw new InvalidAttributeError(
+				"SameSite",
+				lower,
+				VALID_SAME_SITE_VALUES,
 			);
 		}
 		result += `; SameSite=${capitalize(lower)}`;

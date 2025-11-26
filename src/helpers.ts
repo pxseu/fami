@@ -1,6 +1,8 @@
+import { InvalidDateError } from "./errors";
+
 export const formatHttpDate = (date: Date): string => {
-	if (!date || !(date instanceof Date) || Number.isNaN(date.getTime())) {
-		throw new Error("Invalid date");
+	if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+		throw new InvalidDateError();
 	}
 
 	// toUTCString returns the HTTP-date format ref:
@@ -16,10 +18,12 @@ const INVALID_CHARACTERS = /[\x00-\x1F\x7F()<>@,;:\\"/[\]?={}\s]/;
 export const isValidCookieName = (name: string): boolean =>
 	!!name && !INVALID_CHARACTERS.test(name);
 
+const ESCAPE_CHARACTERS = /\\(.)/g;
+
 export const unquoteCookieValue = (value: string): string => {
 	if (value.startsWith('"') && value.endsWith('"')) {
 		// Unescape \" and \\ sequences
-		return value.slice(1, -1).replace(/\\(.)/g, "$1");
+		return value.slice(1, -1).replace(ESCAPE_CHARACTERS, "$1");
 	}
 
 	return value;

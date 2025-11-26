@@ -1,4 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import {
+	InvalidAttributeError,
+	InvalidDateError,
+	InvalidNameError,
+} from "../src/errors";
 import { serialize } from "../src/parser";
 
 describe("serialize", () => {
@@ -60,23 +65,30 @@ describe("serialize", () => {
 	});
 
 	test("throws error for missing name", () => {
-		// @ts-expect-error - This is a test
-		expect(() => serialize()).toThrow("Cookie name is required");
+		// @ts-expect-error
+		expect(() => serialize()).toThrow(InvalidNameError);
+		// @ts-expect-error
+		expect(() => serialize()).toThrow("Name is required");
 	});
 
 	test("throws error for invalid name", () => {
-		expect(() => serialize("invalid name", "value")).toThrow(
-			"Invalid cookie name",
-		);
+		expect(() => serialize("invalid name", "value")).toThrow(InvalidNameError);
+		expect(() => serialize("invalid name", "value")).toThrow("Invalid name");
 	});
 
 	test("throws error for invalid date", () => {
+		expect(() =>
+			serialize("test", "value", { expires: new Date("invalid") }),
+		).toThrow(InvalidDateError);
 		expect(() =>
 			serialize("test", "value", { expires: new Date("invalid") }),
 		).toThrow("Invalid date");
 	});
 
 	test("throws error for invalid SameSite value", () => {
+		expect(() =>
+			serialize("test", "value", { sameSite: "Invalid" as "strict" }),
+		).toThrow(InvalidAttributeError);
 		expect(() =>
 			serialize("test", "value", { sameSite: "Invalid" as "strict" }),
 		).toThrow("Invalid SameSite value");
@@ -94,25 +106,22 @@ describe("serialize", () => {
 	});
 
 	test("handles values with = and ^ characters", () => {
-		// = and ^ are allowed in cookie values, no encoding needed
 		const result = serialize("foo", "E=mc^2");
+
 		expect(result).toBe("foo=E=mc^2");
 	});
 
 	test("handles values with semicolons (uses quoting)", () => {
-		// Semicolons require quoting, not encoding
 		const result = serialize("foo", "bar;with;semicolons");
 		expect(result).toBe('foo="bar;with;semicolons"');
 	});
 
 	test("encodes non-ASCII characters (fallback to encoding)", () => {
-		// Non-ASCII must be encoded, can't be quoted
 		const result = serialize("emoji", "🎉");
 		expect(result).toBe("emoji=%F0%9F%8E%89");
 	});
 
 	test("encodes control characters (fallback to encoding)", () => {
-		// Control characters must be encoded, can't be quoted
 		const result = serialize("test", "hello\nworld");
 		expect(result).toBe("test=hello%0Aworld");
 	});
@@ -144,6 +153,9 @@ describe("serialize", () => {
 	});
 
 	test("throws error for invalid priority value", () => {
+		expect(() =>
+			serialize("test", "value", { priority: "invalid" as "low" }),
+		).toThrow(InvalidAttributeError);
 		expect(() =>
 			serialize("test", "value", { priority: "invalid" as "low" }),
 		).toThrow("Invalid priority value");

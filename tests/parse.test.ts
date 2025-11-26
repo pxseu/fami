@@ -38,7 +38,6 @@ describe("parse", () => {
 	});
 
 	test("treats single quotes as part of the value (not RFC compliant)", () => {
-		// Single quotes are NOT part of RFC 6265, they're treated as literal characters
 		const result = parse("test='single quoted'");
 
 		expect(result).toEqual({
@@ -156,6 +155,14 @@ describe("parse", () => {
 
 		expect(result).toEqual({
 			foo: "bar;with;semicolons",
+		});
+	});
+
+	test("handles values with = and ^ characters", () => {
+		const result = parse("foo=E=mc^2");
+
+		expect(result).toEqual({
+			foo: "E=mc^2",
 		});
 	});
 });
