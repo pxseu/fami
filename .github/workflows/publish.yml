@@ -7,7 +7,7 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 jobs:
   publish:
@@ -44,3 +44,5 @@ jobs:
           echo "FILE_NAME=$FILE_NAME" >> $GITHUB_ENV
       - run: npm publish $FILE_NAME --provenance --ignore-scripts
       - run: gh release create ${{ steps.tag.outputs.tag_name }} $FILE_NAME --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
