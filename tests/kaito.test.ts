@@ -403,5 +403,28 @@ describe("kaito - createFami", () => {
 			expect(context.fami).toBeDefined();
 			expect(context.cookies).toEqual({});
 		});
+
+		test("ensure no overlap between user context and fami context", () => {
+			const wrapper = createFami(["session"]);
+
+			const req = { headers: new Headers() };
+			const head = { headers: new Headers() };
+			const getContext = () => ({
+				cookies: { session: "test" },
+				setCookie: null,
+			});
+
+			// @ts-expect-error
+			const context = wrapper(getContext)(req, head);
+
+			if (context instanceof Promise) {
+				expect.unreachable("context should not be a promise");
+			}
+
+			expect(context.fami).toBeDefined();
+			// @ts-expect-error
+			expect(context.cookies).toEqual({});
+			expect(context.setCookie).toBeFunction();
+		});
 	});
 });

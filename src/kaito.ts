@@ -2,6 +2,10 @@ import { type CookieInit, Fami } from "./fami";
 
 type MaybePromise<T> = T | Promise<T>;
 
+type NoOverlap<T, U> = {
+	[K in keyof T & keyof U]: never;
+};
+
 type GetContext<KaitoRequestStub, KaitoHeadStub, Return extends object> = (
 	req: KaitoRequestStub,
 	head: KaitoHeadStub,
@@ -44,7 +48,7 @@ type FamiContext<CookieName extends string> = {
 type FamiContextWrapper<CookieName extends string> = <
 	KaitoRequestStub extends { headers: Headers },
 	KaitoHeadStub extends { headers: Headers },
-	Return extends object & { [K in keyof FamiContext<CookieName>]?: never },
+	Return extends object & NoOverlap<Return, FamiContext<CookieName>>,
 >(
 	getContext: GetContext<KaitoRequestStub, KaitoHeadStub, Return>,
 ) => (
