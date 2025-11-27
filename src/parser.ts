@@ -41,7 +41,6 @@ export function parse(cookieHeader: string | null | undefined): Cookies {
 			continue;
 		}
 
-		// Trim whitespace from value before processing (RFC 6265 Section 4.2.1)
 		cookies[trimmedName] = decodeCookieValue((value || "").trim());
 	}
 
