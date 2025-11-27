@@ -4,10 +4,7 @@ import { createFami } from "fami/kaito";
 const context = createFami(["session"]);
 
 const kaito = create({
-	getContext: context((req, head) => ({
-		req,
-		head,
-	})),
+	getContext: context((req, head) => ({ req, head })),
 });
 
 const app = kaito
