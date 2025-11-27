@@ -18,7 +18,7 @@ describe("helpers", () => {
 		});
 
 		test("preserves TypeScript type", () => {
-			const result: Lowercase<"STRICT"> = lowercase("STRICT");
+			const result: "strict" = lowercase("STRICT");
 			expect(result).toBe("strict");
 		});
 	});
@@ -48,7 +48,7 @@ describe("helpers", () => {
 		});
 
 		test("preserves TypeScript type", () => {
-			const result: Capitalize<"strict"> = capitalize("strict");
+			const result: "Strict" = capitalize("strict");
 			expect(result).toBe("Strict");
 		});
 	});

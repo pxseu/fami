@@ -79,6 +79,37 @@ describe("kaito - createFami", () => {
 
 			expect(context.fami).toBe(context.fami);
 		});
+
+		test("wrapper works with kaito that calls getContext", () => {
+			const wrapper = createFami(["session"]);
+
+			function mockKaito<Context>(config: {
+				getContext: (
+					req: { headers: Headers; special: "test" },
+					head: { headers: Headers },
+				) => Context;
+			}) {
+				const req = { headers: new Headers(), special: "test" } as const;
+				const head = { headers: new Headers() };
+				return config.getContext(req, head);
+			}
+
+			const context = mockKaito({
+				getContext: wrapper((req, head) => {
+					// phantom value to ensure type inference works
+					const _: "test" = req.special;
+					return { req, head };
+				}),
+			});
+
+			if (context instanceof Promise) {
+				expect.unreachable("context should not be a promise");
+			}
+
+			expect(context.req.special).toBe("test");
+			expect(context.fami).toBeDefined();
+			expect(context.cookies).toBeDefined();
+		});
 	});
 
 	describe("lazy cookies getter", () => {
@@ -167,6 +198,30 @@ describe("kaito - createFami", () => {
 			}
 
 			expect(Object.isFrozen(context.cookies)).toBe(true);
+		});
+
+		test("returns all parsed cookies in multiple headers", () => {
+			const wrapper = createFami(["session", "tracking", "testing"]);
+
+			const req = { headers: new Headers() };
+
+			// these will get combined once the internal .get("Cookie") is called
+			req.headers.append("Cookie", "session=abc123; testing=123");
+			req.headers.append("Cookie", "tracking=xyz789");
+
+			const head = { headers: new Headers() };
+			const getContext = () => ({});
+			const context = wrapper(getContext)(req, head);
+
+			if (context instanceof Promise) {
+				expect.unreachable("context should not be a promise");
+			}
+
+			expect(context.cookies).toEqual({
+				session: "abc123",
+				tracking: "xyz789",
+				testing: "123",
+			});
 		});
 	});
 
