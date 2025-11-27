@@ -21,8 +21,9 @@
 	},
 	"scripts": {
 		"build": "tsup",
-		"test": "bun test",
-		"prepublishOnly": "bun run build && bun test"
+		"test": "bun test --coverage",
+		"t": "bun run test",
+		"prepublishOnly": "bun run build && bun run test"
 	},
 	"keywords": [
 		"cookie",
