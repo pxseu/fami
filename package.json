@@ -13,10 +13,13 @@
 		".": {
 			"import": "./dist/index.js",
 			"require": "./dist/index.cjs"
+		},
+		"./kaito": {
+			"import": "./dist/kaito.js",
+			"require": "./dist/kaito.cjs"
 		}
 	},
 	"scripts": {
-		"prebuild": "rm -rf dist",
 		"build": "tsup",
 		"test": "bun test",
 		"prepublishOnly": "bun run build && bun test"
