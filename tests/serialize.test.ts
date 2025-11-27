@@ -3,8 +3,8 @@ import {
 	InvalidAttributeError,
 	InvalidDateError,
 	InvalidNameError,
-} from "../src/errors";
-import { serialize } from "../src/parser";
+	serialize,
+} from "../src";
 
 describe("serialize", () => {
 	test("serializes basic cookie", () => {

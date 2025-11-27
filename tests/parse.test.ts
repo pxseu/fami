@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parse } from "../src/parser";
+import { parse } from "../src";
 
 describe("parse", () => {
 	test("parses single cookie", () => {

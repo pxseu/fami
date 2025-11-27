@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { FamiError, InvalidNameError } from "../src/errors";
-import { Fami, type InferCookieNames } from "../src/fami";
+import {
+	Fami,
+	FamiError,
+	type InferCookieNames,
+	InvalidNameError,
+} from "../src";
 
 describe("Fami", () => {
 	describe("constructor", () => {
