@@ -6,6 +6,7 @@
 		"@types/bun": "latest"
 	},
 	"dependencies": {
+		"@kaito-http/core": "^4.0.0-beta.29",
 		"fami": "^1.0.10"
 	}
 }

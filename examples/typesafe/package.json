@@ -3,6 +3,6 @@
     "@types/bun": "latest"
   },
   "dependencies": {
-    "fami": "^1.0.9"
+    "fami": "^1.0.10"
   }
 }

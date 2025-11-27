@@ -4,6 +4,7 @@
   "workspaces": {
     "": {
       "dependencies": {
+        "@kaito-http/core": "^4.0.0-beta.29",
         "fami": "^1.0.10",
       },
       "devDependencies": {
@@ -12,6 +13,8 @@
     },
   },
   "packages": {
+    "@kaito-http/core": ["@kaito-http/core@4.0.0-beta.29", "", { "dependencies": { "openapi3-ts": "^4.5.0" } }, "sha512-/JzMSk3j91SbNUiTyVdznhEDdkJwEHz2y0LYHWniJb4YkKrgCYO0Clx43XjUrHfcmrxCRzLHXe1wNPWsV1wK5g=="],
+
     "@types/bun": ["@types/bun@1.3.3", "", { "dependencies": { "bun-types": "1.3.3" } }, "sha512-ogrKbJ2X5N0kWLLFKeytG0eHDleBYtngtlbu9cyBKFtNL3cnpDZkNdQj8flVf6WTZUX5ulI9AY1oa7ljhSrp+g=="],
 
     "@types/node": ["@types/node@24.10.1", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-GNWcUTRBgIRJD5zj+Tq0fKOJ5XZajIiBroOF0yvj2bSU1WvNdYS/dn9UxwsujGW4JX06dnHyjV2y9rRaybH0iQ=="],
@@ -20,6 +23,10 @@
 
     "fami": ["fami@1.0.10", "", { "peerDependencies": { "typescript": "^5" }, "optionalPeers": ["typescript"] }, "sha512-FPgjwwxSza7/XO3W7tEkJgZvGgEdCHRCF7P+/dsbAN4dw2WhyRdxvFNYQB5jke3nCuTdJg/gHmsKWSk+T8HLXw=="],
 
+    "openapi3-ts": ["openapi3-ts@4.5.0", "", { "dependencies": { "yaml": "^2.8.0" } }, "sha512-jaL+HgTq2Gj5jRcfdutgRGLosCy/hT8sQf6VOy+P+g36cZOjI1iukdPnijC+4CmeRzg/jEllJUboEic2FhxhtQ=="],
+
     "undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "yaml": ["yaml@2.8.1", "", { "bin": { "yaml": "bin.mjs" } }, "sha512-lcYcMxX2PO9XMGvAJkJ3OsNMw+/7FKes7/hgerGUYWIoWu5j/+YQqcZr5JnPZWzOsEBgMbSbiSTn/dv/69Mkpw=="],
   }
 }
