@@ -37,7 +37,7 @@ console.log(theme);
 
 const session = fami.serialize("session", "value");
 console.log(session);
-// "session=value; HttpOnly; Secure; Max-Age=3600"
+// "session=value; Max-Age=3600; Secure; HttpOnly"
 
 const deleteSession = fami.delete("session");
 console.log(deleteSession);
@@ -65,7 +65,7 @@ const cookie = serialize("session", "value", {
 });
 
 console.log(cookie);
-// "session=value; HttpOnly; Secure; Max-Age=3600"
+// "session=value; Max-Age=3600; Secure; HttpOnly"
 ```
 
 ## Installation
