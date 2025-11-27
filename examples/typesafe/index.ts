@@ -1,4 +1,6 @@
-import { parse, serialize } from "fami";
+import { Fami } from "fami";
+
+const fami = new Fami(["session"]);
 
 const server = Bun.serve({
 	fetch(req) {
@@ -9,7 +11,7 @@ const server = Bun.serve({
 
 		switch (url.pathname) {
 			case "/": {
-				const cookies = parse(req.headers.get("Cookie"));
+				const cookies = fami.parse(req.headers.get("Cookie"));
 				return new Response(JSON.stringify(cookies), {
 					headers,
 				});
@@ -18,18 +20,13 @@ const server = Bun.serve({
 			case "/set-cookie": {
 				headers.append(
 					"Set-Cookie",
-					serialize("session", new Date().toISOString()),
+					fami.serialize("session", new Date().toISOString()),
 				);
 				return new Response(JSON.stringify("Cookie set"), { headers });
 			}
 
 			case "/delete-cookie": {
-				headers.append(
-					"Set-Cookie",
-					serialize("session", "", {
-						expires: new Date(0),
-					}),
-				);
+				headers.append("Set-Cookie", fami.delete("session"));
 				return new Response(JSON.stringify("Cookie deleted"), { headers });
 			}
 

@@ -2,10 +2,71 @@
 
 > Cookies made for the modern web.
 
-fami is a lightweight, RFC 6265bis-21 compliant cookie parsing and serialization library for HTTP servers. It's designed first and foremost to be human-friendly and easy to use. Offers a drop-in replacement for the built-in `cookie`.
+fami is a lightweight, RFC 6265bis-21 compliant cookie parsing and serialization library for HTTP servers. It's designed first and foremost to be human-friendly and easy to use. Offers similar API to the [`cookie`](https://github.com/jshttp/cookie) package.
 
 > [!WARNING]  
-> fami is still in development and a strict type-safe API is in the works.
+> fami is still in development and all APIs are subject to change.
+
+## Quick Start
+
+Fami provides both a low-level API for cookie parsing and serialization, and a high-level API for type-safe cookie management. Both APIs are functionally equivalent, but the high-level API is a more convenient abstraction that provides type-safety and is recommended for most use cases.
+
+### High-level API
+
+```ts
+import { Fami } from "fami";
+
+const fami = new Fami([
+  "theme",
+  {
+    name: "session",
+    httpOnly: true,
+    secure: true,
+    maxAge: 3600,
+  },
+]);
+
+const cookies = fami.parse("theme=light; session=value");
+
+console.log(cookies);
+// { theme: "light", session: "value" }
+
+const theme = fami.serialize("theme", "light");
+console.log(theme);
+// "theme=light"
+
+const session = fami.serialize("session", "value");
+console.log(session);
+// "session=value; HttpOnly; Secure; Max-Age=3600"
+
+const deleteSession = fami.delete("session");
+console.log(deleteSession);
+// "session=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+```
+
+### Low-level API
+
+```ts
+import { parse } from "fami";
+
+const cookies = parse("foo=bar; baz=qux");
+
+console.log(cookies);
+// { foo: "bar", baz: "qux" }
+```
+
+```ts
+import { serialize } from "fami";
+
+const cookie = serialize("session", "value", {
+  httpOnly: true,
+  secure: true,
+  maxAge: 3600,
+});
+
+console.log(cookie);
+// "session=value; HttpOnly; Secure; Max-Age=3600"
+```
 
 ## Installation
 
