@@ -89,9 +89,9 @@ function createFamiContext<CookieName extends string, Return extends object>(
  * @returns A Kaito context wrapper
  */
 export function createFami<CookieName extends string>(
-	cookieInit: CookieInit<CookieName>[],
+	cookieInit: readonly CookieInit<CookieName>[] | Fami<CookieName>,
 ): FamiContextWrapper<CookieName> {
-	const fami = new Fami(cookieInit);
+	const fami = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 
 	return <
 		KaitoRequestStub extends { headers: Headers },

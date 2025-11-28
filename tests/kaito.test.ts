@@ -1,4 +1,5 @@
 import { describe, expect, test, vi } from "bun:test";
+import { Fami } from "../src/fami";
 import { createFami } from "../src/kaito";
 
 describe("kaito - createFami", () => {
@@ -109,6 +110,26 @@ describe("kaito - createFami", () => {
 			expect(context.req.special).toBe("test");
 			expect(context.fami).toBeDefined();
 			expect(context.cookies).toBeDefined();
+		});
+
+		test("wrapper works with fami instance", () => {
+			const fami = new Fami(["session", "tracking"]);
+			const wrapper = createFami(fami);
+
+			const req = { headers: new Headers() };
+			const head = { headers: new Headers() };
+			const getContext = () => ({});
+			const context = wrapper(getContext)(req, head);
+
+			if (context instanceof Promise) {
+				expect.unreachable("context should not be a promise");
+			}
+
+			expect(context.fami).toBe(fami);
+			expect(context.cookies).toEqual({
+				session: undefined,
+				tracking: undefined,
+			});
 		});
 	});
 
