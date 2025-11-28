@@ -41,6 +41,11 @@ export function parse(cookieHeader: string | null | undefined): Cookies {
 			continue;
 		}
 
+		if (cookies[trimmedName]) {
+			// if the cookie already exists, skip it
+			continue;
+		}
+
 		cookies[trimmedName] = decodeCookieValue((value || "").trim());
 	}
 

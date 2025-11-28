@@ -133,11 +133,11 @@ describe("parse", () => {
 		});
 	});
 
-	test("handles duplicate cookie names (last wins)", () => {
+	test("handles duplicate cookie names (first one wins)", () => {
 		const result = parse("test=first; test=second; test=third");
 
 		expect(result).toEqual({
-			test: "third",
+			test: "first",
 		});
 	});
 
