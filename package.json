@@ -1,6 +1,7 @@
 {
 	"name": "fami",
 	"version": "1.0.10",
+	"license": "MIT",
 	"description": "RFC 6265bis-21 compliant cookie parsing and serialization library",
 	"type": "module",
 	"author": "pxseu",

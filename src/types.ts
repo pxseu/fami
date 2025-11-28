@@ -4,6 +4,7 @@ export type CookieAttributes = Partial<{
 	/**
 	 * The date and time after which the cookie will be considered expired
 	 * If both `expires` and `maxAge` are set, `maxAge` has precedence.
+	 * Both should **NOT** be used together, but if they are they should point the same value.
 	 *
 	 * @see https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers/Set-Cookie#expiresdate
 	 */
@@ -11,6 +12,7 @@ export type CookieAttributes = Partial<{
 	/**
 	 * The maximum age of the cookie in seconds
 	 * If both `expires` and `maxAge` are set, `maxAge` has precedence.
+	 * Both should **NOT** be used together, but if they are they should point the same value.
 	 *
 	 * @see https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers/Set-Cookie#max-agenumber
 	 */

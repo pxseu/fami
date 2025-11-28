@@ -15,6 +15,7 @@ export type CookieDefinition<_ extends string> = Partial<{
 	 * A function that returns the expiration date of the cookie
 	 * This is useful for cookies that need to be refreshed periodically
 	 * If both `expires` and `maxAge` are set, `maxAge` has precedence.
+	 * Both should **NOT** be used together, but if they are they should point the same value.
 	 *
 	 * @example
 	 * ```ts
