@@ -13,14 +13,14 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Get tag data
-        id: tag
+      - id: tag
         run: |
           echo "tag_name=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
 
-          if [[ ${{ github.event.ref }} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]]; then
-            echo "pre_release=true" >> $GITHUB_OUTPUT
-          fi
+        # no need to pre-release yet
+        #  if [[ ${{ github.event.ref }} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]]; then
+        #    echo "pre_release=true" >> $GITHUB_OUTPUT
+        #  fi
 
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
@@ -36,12 +36,12 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - run: bun install --frozen-lockfile
-      - run: bun run test
-      - run: bun run build
-      - run: bun pm pack
+      # build + test
+      - run: bun run prepublishOnly
       - run: |
-          FILE_NAME=$(ls -1 *.tgz | head -n 1)
+          FILE_NAME=$(bun pm pack --quiet)
           echo "FILE_NAME=$FILE_NAME" >> $GITHUB_ENV
+      # https://github.com/oven-sh/bun/issues/15601 - provenance is not supported yet by bun :(
       - run: npm publish $FILE_NAME --provenance --ignore-scripts
       - run: gh release create ${{ steps.tag.outputs.tag_name }} $FILE_NAME --generate-notes
         env:
