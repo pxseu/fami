@@ -1,17 +1,81 @@
 # fami
 
-> Cookies made for the modern web.
+![NPM Version](https://img.shields.io/npm/v/fami) ![License](https://img.shields.io/npm/l/fami) ![npm package minimized gzipped size](https://img.shields.io/bundlejs/size/fami) [![Publishing](https://github.com/pxseu/fami/actions/workflows/publish.yml/badge.svg)](https://github.com/pxseu/fami/actions/workflows/publish.yml) [![Tests](https://github.com/pxseu/fami/actions/workflows/test.yml/badge.svg)](https://github.com/pxseu/fami/actions/workflows/test.yml)
 
-fami is a lightweight, RFC 6265bis-21 compliant cookie parsing and serialization library for HTTP servers. It's designed first and foremost to be human-friendly and easy to use. Offers similar API to the [`cookie`](https://github.com/jshttp/cookie) package.
+Working with cookies shouldn't be complicated or scary. **fami** makes HTTP cookie management simple, safe, and of course type-safe.
 
-> [!WARNING]  
-> fami is still in development and all APIs are subject to change.
+**fami** is a lightweight library focused on correctness and developer experience, following modern RFC 6265bis standards with an intuitive API designed for today's web.
+
+## Table of Contents
+
+- [Features](#features)
+- [Why fami?](#why-fami)
+- [Compatibility](#compatibility)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+  - [High-level API (recommended)](#highlevel-api-recommended)
+  - [Low-level API](#lowlevel-api)
+- [Framework Integration](#framework-integration)
+  - [Kaito](#kaito)
+- [RFC Compliance](#rfc-compliance)
+- [Inspirations](#inspirations)
+- [Development](#development)
+- [License](#license)
+
+## Features
+
+- Schema-based abstraction for cookie definitions and serializing/parsing cookies with type safety
+- Flexible cookie parsing/serialization
+- First‑class integration with [**Kaito**](https://github.com/kaito-http/kaito)
+- Safe, predictable behavior following the latest HTTP State Management draft ([RFC 6265bis](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-21))
+- Strong TypeScript support with extensive JSDoc
+- Zero dependencies, tiny footprint
+
+## Why fami?
+
+If you're already using a cookie library, you might wonder why you should switch. Here's what sets **fami** apart:
+
+**vs. [`cookie`](https://github.com/jshttp/cookie)** (the most popular choice)
+
+> **Note:** `cookie` is a perfectly valid choice and is very well maintained. It has been around for a long time and is a well-established library with battle-tested code and a large community.
+
+- fami provides a high-level schema-based API that prevents cookie configuration drift across your codebase
+- Full RFC 6265bis compliance with modern parsing rules
+- Better TypeScript support with extensive JSDoc comments
+
+**vs. rolling your own**
+
+- Cookie parsing/serialization has many edge cases (whitespace, special characters, encoding, attribute ordering)
+- RFC 6265bis compliance requires careful handling of modern attributes
+- Manual cookie handling is error-prone (typos, missing attributes, type mismatches) and hard to maintain across a codebase
+
+**Perfect for:**
+
+- New projects that want modern cookie handling out of the box
+- Teams migrating to edge runtimes or modern frameworks
+- Developers who want type-safe cookie management with minimal boilerplate
+
+## Compatibility
+
+**fami** is runtime-agnostic but requires `Date.toUTCString()` to be available and `RegExp` to be available.
+
+## Installation
+
+```bash
+bun add fami
+# or
+npm install fami
+# or
+yarn add fami
+# or
+pnpm add fami
+```
 
 ## Quick Start
 
-Fami provides both a low-level API for cookie parsing and serialization, and a high-level API for type-safe cookie management. Both APIs are functionally equivalent, but the high-level API is a more convenient abstraction that provides type-safety and is recommended for most use cases.
+### High‑level API (recommended)
 
-### High-level API
+The High-level API provides a simple and intuitive abstraction for managing your cookie attributes and names. Define your cookie names once and use them throughout your application with full type safety. Set sane defaults for your cookies and serialize/parse them worry free of edge cases.
 
 ```ts
 import { Fami } from "fami";
@@ -44,7 +108,9 @@ console.log(deleteSession);
 // "session=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
 ```
 
-### Low-level API
+### Low‑level API
+
+Useful when you want more control or are moving away from other libraries. You can easily check if Fami is compatible with your existing code. If it is, you _should_ migrate over to the High-level API.
 
 ```ts
 import { parse } from "fami";
@@ -68,54 +134,96 @@ console.log(cookie);
 // "session=value; Max-Age=3600; Secure; HttpOnly"
 ```
 
-## Installation
+## Framework Integration
 
-```bash
-bun add fami
-# or
-npm install fami
-# or
-yarn add fami
+### Kaito
+
+**[Kaito](https://github.com/kaito-http/kaito)** is a modern, type-safe functional HTTP framework.
+
+fami provides first‑class [**Kaito**](https://github.com/kaito-http/kaito) support through a tiny utility that extends the Kaito context with fami's methods. The utility adds functions like `ctx.setCookie("session", "value")` and `ctx.deleteCookie("session")` to the Kaito context which make it a great experience to work with.
+
+```ts
+import { create } from "@kaito-http/core";
+import { createFami } from "fami/kaito";
+
+const context = createFami(["session"]);
+
+const kaito = create({
+  getContext: context((req, head) => ({ req, head })),
+});
+
+const app = kaito.get("/", ({ ctx }) => {
+  const session = ctx.cookies.session;
+
+  if (session) {
+    return {
+      message: "You are logged in!",
+    };
+  }
+
+  throw new KaitoError(401, "Unauthorized");
+});
+
+Bun.serve({
+  fetch: app.serve(),
+});
 ```
 
-## Testing
+For more details, you can take a look at the [examples](./examples/kaito/index.ts).
 
-Run the test suite:
+## RFC Compliance
 
-```bash
-bun test
-```
+fami targets the latest HTTP State Management draft (**RFC 6265bis**, draft‑21 as of 2025), and future drafts onwards.
 
-The library includes comprehensive tests covering:
+Highlights:
 
-- Cookie header parsing (multiple cookies, quoted values, URL encoding)
-- Set-Cookie serialization (all attributes)
-- Edge cases and malformed cookie handling
-- Special character and encoding handling
+- **Modern Attributes:** Full support for [`Partitioned` (CHIPS)](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Privacy_sandbox/Partitioned_cookies), `Priority`, and `SameSite` configuration.
+- Follows modern parsing rules
+- Is backwards compatible with the legacy RFC 6265 syntax
+- Strict attribute handling
+- Serialization consistent with draft syntax expectations
+
+## Inspirations
+
+fami was inspired by the following libraries:
+
+- [cookie](https://github.com/jshttp/cookie) - The most popular cookie library, it is a well-established library with battle-tested code and a large community.
+- [pika](https://github.com/Phineas/pika/tree/main/impl/js) - Fully typed, 0 dependencies JS implementation of the full Pika specification.
 
 ## Development
 
+### Prerequisites
+
+Although **fami** is runtime-agnostic, it is developed and tested using Bun. It is advised to use Bun when developing.
+
 ```bash
-# Install dependencies
+# install deps
 bun install
 
-# Run tests
-bun test
-
-# Build the package
-bun run build
+# dry run the publish command to see what would be published,
+# this also runs the test suite and builds the package
+bun run publish --dry-run
 ```
 
-## RFC 6265bis-21 Compliance
+### Testing
 
-This library implements [RFC 6265bis-21](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-21) (December 2024), the latest revision of the HTTP State Management Mechanism specification. Key features include:
+```bash
+bun t
+```
 
-- Strict cookie name validation (HTTP tokens)
-- Proper value encoding (quoted strings and URL encoding)
-- Modern attributes: `SameSite`, `Partitioned`, `Priority`
-- Correct date formatting per HTTP-date specification
-- Graceful handling of malformed cookies
-- Support for both `;` and `,` separators in Cookie headers (legacy support)
+The above command is a shortcut for `bun run test` that executes the test suite and generates a coverage report via Bun's built-in coverage tool.
+
+The test suite covers:
+
+- Attribute correctness
+- Legacy separators
+- Serialization stability
+- Path/domain/expiration handling
+- Edge cases around whitespace, casing, and malformed input
+
+### Publishing
+
+Releases are published automatically via GitHub Actions. Existing versions on npm are never overwritten and each release is immutable, and new versions are always published with a new semver tag.
 
 ## License
 

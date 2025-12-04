@@ -1,4 +1,4 @@
-name: Publish Package
+name: Publishing
 
 on:
   push:
@@ -27,8 +27,7 @@ jobs:
         with:
           node-version: "latest"
           registry-url: "https://registry.npmjs.org"
-      - name: Update npm
-        run: npm install -g npm@latest
+      - run: npm install -g npm@latest
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -39,9 +38,7 @@ jobs:
       # build + test
       - run: bun run prepublishOnly
       # pipe through xargs to remove whitespace
-      - run: |
-          FILE_NAME=$(bun pm pack --quiet | xargs)
-          echo "FILE_NAME=$FILE_NAME" >> $GITHUB_ENV
+      - run: echo "FILE_NAME=$(bun pm pack --quiet | xargs)" >> $GITHUB_ENV
       # https://github.com/oven-sh/bun/issues/15601 - provenance is not supported yet by bun :(
       - run: npm publish $FILE_NAME --provenance --ignore-scripts
       - run: gh release create ${{ steps.tag.outputs.tag_name }} $FILE_NAME --generate-notes
