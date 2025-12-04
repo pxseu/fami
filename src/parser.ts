@@ -6,6 +6,7 @@ import {
 	formatHttpDate,
 	isValidCookieName,
 	lowercase,
+	newObject,
 	VALID_PRIORITY_VALUES,
 	VALID_SAME_SITE_VALUES,
 } from "./helpers";
@@ -26,7 +27,7 @@ export function parse(cookieHeader: string | null | undefined): Cookies {
 		return {};
 	}
 
-	const cookies: Cookies = {};
+	const cookies: Cookies = newObject();
 
 	const parts = cookieHeader.split(COOKIE_SEPARATORS);
 

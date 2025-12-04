@@ -154,6 +154,105 @@ describe("Fami", () => {
 		});
 	});
 
+	describe("serializeAll", () => {
+		test("serializes all cookies in the record", () => {
+			const fami = new Fami(["session", "tracking"]);
+
+			const result = fami.serializeAll({
+				session: "abc123",
+				tracking: {
+					value: "value",
+				},
+			});
+
+			expect(result).toEqual(["session=abc123", "tracking=value"]);
+		});
+
+		test("serializes all cookies in the record with mixed values and attributes", () => {
+			const fami = new Fami(["session", "tracking"]);
+
+			const [session, tracking] = fami.serializeAll({
+				session: "abc123",
+				tracking: { value: "value", path: "/", maxAge: 3600 },
+			});
+
+			expect(session).toEqual("session=abc123");
+			expect(tracking).toContain("tracking=value");
+			expect(tracking).toContain("Path=/");
+			expect(tracking).toContain("Max-Age=3600");
+		});
+
+		test("serializes all cookies in the record with attributes", () => {
+			const fami = new Fami([
+				"session",
+				{
+					name: "tracking",
+					path: "/",
+					maxAge: 3600,
+				},
+			]);
+
+			const [session, tracking] = fami.serializeAll({
+				session: "abc123",
+				tracking: "value",
+			});
+
+			expect(session).toEqual("session=abc123");
+			expect(tracking).toContain("tracking=value");
+			expect(tracking).toContain("Path=/");
+			expect(tracking).toContain("Max-Age=3600");
+		});
+
+		test("correctly overrides attributes", () => {
+			const fami = new Fami([
+				{
+					name: "tracking",
+					path: "/admin",
+					maxAge: 3600,
+				},
+			]);
+
+			const [tracking] = fami.serializeAll({
+				tracking: { value: "value", path: "/docs", maxAge: 0 },
+			});
+
+			expect(tracking).toContain("tracking=value");
+			expect(tracking).toContain("Path=/docs");
+			expect(tracking).toContain("Max-Age=0");
+			expect(tracking).not.toContain("Path=/admin");
+			expect(tracking).not.toContain("Max-Age=3600");
+		});
+
+		test("serializes all cookies in the record with undefined values", () => {
+			const fami = new Fami(["session", "tracking"]);
+
+			const result = fami.serializeAll({
+				session: "abc123",
+				tracking: undefined,
+			});
+
+			expect(result).toEqual(["session=abc123"]);
+		});
+
+		test("returns empty array for no cookies", () => {
+			const fami = new Fami(["session", "tracking"]);
+
+			const result = fami.serializeAll({});
+
+			expect(result).toEqual([]);
+		});
+
+		test("can serialize with an empty string", () => {
+			const fami = new Fami(["session"]);
+
+			const result = fami.serializeAll({
+				session: "",
+			});
+
+			expect(result).toEqual(["session="]);
+		});
+	});
+
 	describe("parse", () => {
 		test("parses cookie header and returns registered cookies", () => {
 			const fami = new Fami(["session", "tracking"]);
@@ -336,6 +435,64 @@ describe("Fami", () => {
 			const definition = fami.getDefinition("session");
 
 			expect(definition?.description).toBe("User session cookie");
+		});
+	});
+
+	describe("prototype pollution protection", () => {
+		test("allows __proto__ as cookie name in constructor", () => {
+			const fami = new Fami(["__proto__", "session"]);
+
+			expect(fami.getNames()).toContain("__proto__");
+			expect(fami.getNames()).toContain("session");
+			expect(fami.has("__proto__")).toBe(true);
+		});
+
+		test("allows constructor as cookie name in constructor", () => {
+			const fami = new Fami(["constructor", "session"]);
+
+			expect(fami.getNames()).toContain("constructor");
+			expect(fami.getNames()).toContain("session");
+			expect(fami.has("constructor")).toBe(true);
+		});
+
+		test("parses __proto__ cookie correctly", () => {
+			const fami = new Fami(["__proto__", "session"]);
+			const result = fami.parse("__proto__=polluted; session=abc123");
+
+			expect(Object.hasOwn(result, "__proto__")).toBe(true);
+			expect(result.__proto__).toBe("polluted");
+			expect(result.session).toBe("abc123");
+		});
+
+		test("parses constructor cookie correctly", () => {
+			const fami = new Fami(["constructor", "session"]);
+			const result = fami.parse("constructor=evil; session=abc123");
+
+			expect(Object.hasOwn(result, "constructor")).toBe(true);
+			expect(result.constructor).toBe("evil");
+			expect(result.session).toBe("abc123");
+		});
+
+		test("serializes __proto__ cookie correctly", () => {
+			const fami = new Fami(["__proto__"]);
+			const result = fami.serialize("__proto__", "value");
+
+			expect(result).toBe("__proto__=value");
+		});
+
+		test("serializes constructor cookie correctly", () => {
+			const fami = new Fami(["constructor"]);
+			const result = fami.serialize("constructor", "value");
+
+			expect(result).toBe("constructor=value");
+		});
+
+		test("does not pollute Object.prototype", () => {
+			const fami = new Fami(["__proto__", "constructor"]);
+			fami.parse("__proto__=polluted; constructor=evil");
+
+			expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+			expect(Object.keys(Object.prototype)).toEqual([]);
 		});
 	});
 
