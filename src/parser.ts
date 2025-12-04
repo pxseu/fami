@@ -1,19 +1,18 @@
 import { InvalidAttributeError, InvalidNameError } from "./errors";
 import {
+	COOKIE_SEPARATORS,
 	capitalize,
 	decodeCookieValue,
 	encodeCookieValue,
 	formatHttpDate,
 	isValidCookieName,
 	lowercase,
+	NAME_VALUE_MATCHER,
 	newObject,
 	VALID_PRIORITY_VALUES,
 	VALID_SAME_SITE_VALUES,
 } from "./helpers";
 import type { CookieAttributes, Cookies } from "./types";
-
-const COOKIE_SEPARATORS = /[;,]/;
-const NAME_VALUE_MATCHER = /^([^=]+)=(.*)$/;
 
 /**
  * Parses a Cookie header value (multiple cookies from client) into a Cookies object
@@ -27,7 +26,7 @@ export function parse(cookieHeader: string | null | undefined): Cookies {
 		return {};
 	}
 
-	const cookies: Cookies = newObject();
+	const cookies = newObject<Cookies>();
 
 	const parts = cookieHeader.split(COOKIE_SEPARATORS);
 

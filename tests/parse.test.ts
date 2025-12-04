@@ -114,6 +114,14 @@ describe("parse", () => {
 				foo: "E=mc^2",
 			});
 		});
+
+		test("handles values with only opening quote", () => {
+			const result = parse('test="');
+
+			expect(result).toEqual({
+				test: '"',
+			});
+		});
 	});
 
 	describe("encoded values", () => {

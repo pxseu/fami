@@ -1,5 +1,8 @@
 import { InvalidDateError } from "./errors";
 
+export const COOKIE_SEPARATORS = /[;,]/;
+export const NAME_VALUE_MATCHER = /^([^=]+)=(.*)$/;
+
 export function formatHttpDate(date: Date): string {
 	if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
 		throw new InvalidDateError();
@@ -22,12 +25,13 @@ export function isValidCookieName(name: string): boolean {
 const ESCAPE_CHARACTERS = /\\(.)/g;
 
 function unquoteCookieValue(value: string): string {
-	if (value.startsWith('"') && value.endsWith('"')) {
-		// Unescape \" and \\ sequences
-		return value.slice(1, -1).replace(ESCAPE_CHARACTERS, "$1");
+	// make sure the value is AT least both quotes
+	if (value.length < 2 || !value.startsWith('"') || !value.endsWith('"')) {
+		return value;
 	}
 
-	return value;
+	// Unescape \" and \\ sequences
+	return value.slice(1, -1).replace(ESCAPE_CHARACTERS, "$1");
 }
 
 export function decodeCookieValue(value: string): string {
@@ -36,6 +40,10 @@ export function decodeCookieValue(value: string): string {
 
 	// unquote the value, odds are it still could be encoded
 	const unquotedValue = unquoteCookieValue(value);
+
+	if (unquotedValue.indexOf("%") === -1) {
+		return unquotedValue;
+	}
 
 	try {
 		// the is not required per-se by the RFC, but a lot of implementations do this

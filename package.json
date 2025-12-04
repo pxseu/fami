@@ -9,6 +9,15 @@
 		"type": "git",
 		"url": "git+https://github.com/pxseu/fami.git"
 	},
+	"homepage": "https://github.com/pxseu/fami#readme",
+	"bugs": {
+		"url": "https://github.com/pxseu/fami/issues"
+	},
+	"funding": {
+		"type": "github",
+		"url": "https://github.com/sponsors/pxseu"
+	},
+	"sideEffects": false,
 	"exports": {
 		"./package.json": "./package.json",
 		".": {
@@ -52,13 +61,5 @@
 		"package.json",
 		"README.md",
 		"dist"
-	],
-	"homepage": "https://github.com/pxseu/fami#readme",
-	"bugs": {
-		"url": "https://github.com/pxseu/fami/issues"
-	},
-	"funding": {
-		"type": "github",
-		"url": "https://github.com/sponsors/pxseu"
-	}
+	]
 }
