@@ -1,7 +1,7 @@
 import { InvalidDateError } from "./errors";
 
 export const COOKIE_SEPARATORS = /[;,]/;
-export const NAME_VALUE_MATCHER = /^([^=]+)=(.*)$/;
+export const NAME_VALUE_MATCHER = /^([^=]+)=(.*)$/s;
 
 export function formatHttpDate(date: Date): string {
 	if (!(date instanceof Date) || Number.isNaN(date.getTime())) {

@@ -122,6 +122,46 @@ describe("parse", () => {
 				test: '"',
 			});
 		});
+
+		test("handles values with newlines", () => {
+			const result = parse("test=hello\nworld");
+
+			expect(result).toEqual({
+				test: "hello\nworld",
+			});
+		});
+
+		test("handles values with carriage returns", () => {
+			const result = parse("test=hello\rworld");
+
+			expect(result).toEqual({
+				test: "hello\rworld",
+			});
+		});
+
+		test("handles quoted values with whitespace", () => {
+			const result = parse('test=      "hello world"        ');
+
+			expect(result).toEqual({
+				test: "hello world",
+			});
+		});
+
+		test("handles quoted values with newlines", () => {
+			const result = parse('test="hello\nworld"');
+
+			expect(result).toEqual({
+				test: "hello\nworld",
+			});
+		});
+
+		test("handles quoted values with tabs", () => {
+			const result = parse('test=\t\t\t\t"hello world"\t\t\t    ');
+
+			expect(result).toEqual({
+				test: "hello world",
+			});
+		});
 	});
 
 	describe("encoded values", () => {
