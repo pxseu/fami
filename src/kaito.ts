@@ -33,17 +33,6 @@ type FamiContext<CookieName extends string> = {
 /**
  * A Kaito context wrapper that includes the Fami instance and cookie management methods
  * You should not call this function directly, simply wrap your current context function with it.
- * @example
- * ```ts
- * const context = createFami(["session"]);
- *
- * const kaito = create({
- *   getContext: context((req, head) => {
- * 	   // your usual context function
- * 	   // it will be merged with the Fami context
- *   }),
- * });
- *  ```
  */
 type FamiContextWrapper<CookieName extends string> = <
 	KaitoRequestStub extends { headers: Headers },
@@ -84,9 +73,23 @@ function createFamiContext<CookieName extends string, Return extends object>(
 }
 
 /**
- * Creates a Kaito context wrapper that includes the Fami instance and cookie management methods
+ * Creates a Kaito context wrapper that includes the Fami instance and cookie management methods.
+ * You should not call this function directly, simply wrap your current context function with it.
+ *
  * @param cookieInit The cookie definitions to initialize the Fami instance with
  * @returns A Kaito context wrapper
+ *
+ * @example
+ * ```ts
+ * const context = createFami(["session"]);
+ *
+ * const kaito = create({
+ *   getContext: context((req, head) => {
+ *     // your usual context function
+ *     // it will be merged with the Fami context
+ *   }),
+ * });
+ * ```
  */
 export function createFami<CookieName extends string>(
 	cookieInit: readonly CookieInit<CookieName>[] | Fami<CookieName>,

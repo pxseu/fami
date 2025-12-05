@@ -57,7 +57,7 @@ If you're already using a cookie library, you might wonder why you should switch
 
 ## Compatibility
 
-**fami** is runtime-agnostic but requires `Date.toUTCString()` to be available and `RegExp` to be available.
+**fami** is runtime-agnostic and works in all of your favorite runtimes. Such as but not limited to: Bun, Node.js, Deno, Cloudflare Workers, Vercel, Netlify, and more.
 
 ## Installation
 
