@@ -99,9 +99,12 @@ const theme = fami.serialize("theme", "light");
 console.log(theme);
 // "theme=light"
 
-const session = fami.serialize("session", "value");
+// You can also override the default attributes with your own
+const session = fami.serialize("session", "value", {
+  maxAge: 7200,
+});
 console.log(session);
-// "session=value; Max-Age=3600; Secure; HttpOnly"
+// "session=value; Max-Age=7200; Secure; HttpOnly"
 
 const deleteSession = fami.delete("session");
 console.log(deleteSession);
