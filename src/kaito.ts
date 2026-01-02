@@ -11,7 +11,7 @@ type GetContext<KaitoRequestStub, KaitoHeadStub, Return extends object> = (
 	head: KaitoHeadStub,
 ) => MaybePromise<Return>;
 
-type FamiContext<CookieName extends string> = {
+export type FamiContext<CookieName extends string> = {
 	/**
 	 *  The Fami instance that is used to manage cookie definitions and serialize/parse/delete cookies
 	 */
@@ -34,7 +34,7 @@ type FamiContext<CookieName extends string> = {
  * A Kaito context wrapper that includes the Fami instance and cookie management methods
  * You should not call this function directly, simply wrap your current context function with it.
  */
-type FamiContextWrapper<CookieName extends string> = <
+export type FamiContextWrapper<CookieName extends string> = <
 	KaitoRequestStub extends { headers: Headers },
 	KaitoHeadStub extends { headers: Headers },
 	Return extends object & NoOverlap<Return, FamiContext<CookieName>>,
