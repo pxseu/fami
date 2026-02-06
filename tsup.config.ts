@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-	entry: ["./src/index.ts", "./src/kaito.ts"],
+	entry: ["./src/index.ts", "./src/kaito.ts", "./src/express.ts"],
 	clean: true,
 	dts: {
 		compilerOptions: {

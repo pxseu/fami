@@ -21,12 +21,34 @@
 	"exports": {
 		"./package.json": "./package.json",
 		".": {
-			"import": "./dist/index.js",
-			"require": "./dist/index.cjs"
+			"import": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.js"
+			},
+			"require": {
+				"types": "./dist/index.d.cts",
+				"default": "./dist/index.cjs"
+			}
 		},
 		"./kaito": {
-			"import": "./dist/kaito.js",
-			"require": "./dist/kaito.cjs"
+			"import": {
+				"types": "./dist/kaito.d.ts",
+				"default": "./dist/kaito.js"
+			},
+			"require": {
+				"types": "./dist/kaito.d.cts",
+				"default": "./dist/kaito.cjs"
+			}
+		},
+		"./express": {
+			"import": {
+				"types": "./dist/express.d.ts",
+				"default": "./dist/express.js"
+			},
+			"require": {
+				"types": "./dist/express.d.cts",
+				"default": "./dist/express.cjs"
+			}
 		}
 	},
 	"scripts": {

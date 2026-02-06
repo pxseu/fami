@@ -1,14 +1,16 @@
 import { type CookieInit, Fami } from "./fami";
 
+type KaitoRequestStub = { headers: Headers };
+type KaitoHeadStub = { headers: Headers };
 type MaybePromise<T> = T | Promise<T>;
 
 type NoOverlap<T, U> = {
 	[K in keyof T & keyof U]: never;
 };
 
-type GetContext<KaitoRequestStub, KaitoHeadStub, Return extends object> = (
-	req: KaitoRequestStub,
-	head: KaitoHeadStub,
+export type GetContext<Request, Head, Return extends object> = (
+	req: Request,
+	head: Head,
 ) => MaybePromise<Return>;
 
 export type FamiContext<CookieName extends string> = {
@@ -35,20 +37,20 @@ export type FamiContext<CookieName extends string> = {
  * You should not call this function directly, simply wrap your current context function with it.
  */
 export type FamiContextWrapper<CookieName extends string> = <
-	KaitoRequestStub extends { headers: Headers },
-	KaitoHeadStub extends { headers: Headers },
+	Request extends KaitoRequestStub,
+	Head extends KaitoHeadStub,
 	Return extends object & NoOverlap<Return, FamiContext<CookieName>>,
 >(
-	getContext: GetContext<KaitoRequestStub, KaitoHeadStub, Return>,
+	getContext: GetContext<Request, Head, Return>,
 ) => (
-	req: KaitoRequestStub,
-	head: KaitoHeadStub,
+	req: Request,
+	head: Head,
 ) => MaybePromise<Return & FamiContext<CookieName>>;
 
 function createFamiContext<CookieName extends string, Return extends object>(
 	fami: Fami<CookieName>,
-	req: { headers: Headers },
-	head: { headers: Headers },
+	req: KaitoRequestStub,
+	head: KaitoHeadStub,
 	context: Return,
 ): Return & FamiContext<CookieName> {
 	let lazyCookies: Record<CookieName, string | undefined> | undefined;
@@ -97,16 +99,16 @@ export function createFami<CookieName extends string>(
 	const fami = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 
 	return <
-		KaitoRequestStub extends { headers: Headers },
-		KaitoHeadStub extends { headers: Headers },
+		Request extends KaitoRequestStub,
+		Head extends KaitoHeadStub,
 		Return extends object,
 	>(
-		getContext: GetContext<KaitoRequestStub, KaitoHeadStub, Return>,
+		getContext: GetContext<Request, Head, Return>,
 	): ((
-		req: KaitoRequestStub,
-		head: KaitoHeadStub,
+		req: Request,
+		head: Head,
 	) => MaybePromise<Return & FamiContext<CookieName>>) => {
-		return (req: KaitoRequestStub, head: KaitoHeadStub) => {
+		return (req: Request, head: Head) => {
 			const userContext = getContext(req, head);
 
 			if (userContext instanceof Promise) {

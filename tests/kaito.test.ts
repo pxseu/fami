@@ -1,16 +1,38 @@
 import { describe, expect, test, vi } from "bun:test";
 import { Fami } from "../src/fami";
-import { createFami } from "../src/kaito";
+import { type FamiContextWrapper, createFami } from "../src/kaito";
+
+function mockReq(cookie?: string) {
+	const headers = new Headers();
+	if (cookie) headers.set("Cookie", cookie);
+	return { headers };
+}
+
+function mockHead() {
+	return { headers: new Headers() };
+}
+
+function applyContext<CookieName extends string>(
+	wrapper: FamiContextWrapper<CookieName>,
+	req = mockReq(),
+	head = mockHead(),
+) {
+	const context = wrapper(() => ({}))(req, head);
+
+	if (context instanceof Promise) {
+		expect.unreachable("context should not be a promise");
+	}
+
+	return { context, req, head };
+}
 
 describe("kaito - createFami", () => {
 	describe("context wrapper creation", () => {
 		test("creates wrapper that exposes fami instance", () => {
 			const wrapper = createFami(["session", "tracking"]);
-
-			const req = { headers: new Headers() };
-			const head = { headers: new Headers() };
-			const getContext = () => ({ user: "test" });
-			const context = wrapper(getContext)(req, head);
+			const req = mockReq();
+			const head = mockHead();
+			const context = wrapper(() => ({ user: "test" }))(req, head);
 
 			if (context instanceof Promise) {
 				expect.unreachable("context should not be a promise");
@@ -22,15 +44,12 @@ describe("kaito - createFami", () => {
 
 		test("merges user context with fami context", () => {
 			const wrapper = createFami(["session"]);
-
-			const req = { headers: new Headers() };
-			const head = { headers: new Headers() };
-			const getContext = () => ({
+			const req = mockReq();
+			const head = mockHead();
+			const context = wrapper(() => ({
 				userId: 123,
 				isAdmin: true,
-			});
-
-			const context = wrapper(getContext)(req, head);
+			}))(req, head);
 
 			if (context instanceof Promise) {
 				expect.unreachable("context should not be a promise");
@@ -49,16 +68,7 @@ describe("kaito - createFami", () => {
 
 		test("works with empty user context", () => {
 			const wrapper = createFami(["session"]);
-
-			const req = { headers: new Headers() };
-			const head = { headers: new Headers() };
-			const getContext = () => ({});
-
-			const context = wrapper(getContext)(req, head);
-
-			if (context instanceof Promise) {
-				expect.unreachable("context should not be a promise");
-			}
+			const { context } = applyContext(wrapper);
 
 			expect(context.fami).toBeDefined();
 			expect(context.cookies).toBeDefined();
@@ -68,15 +78,7 @@ describe("kaito - createFami", () => {
 
 		test("fami getter always returns same instance", () => {
 			const wrapper = createFami(["session"]);
-
-			const req = { headers: new Headers() };
-			const head = { headers: new Headers() };
-			const getContext = () => ({});
-			const context = wrapper(getContext)(req, head);
-
-			if (context instanceof Promise) {
-				expect.unreachable("context should not be a promise");
-			}
+			const { context } = applyContext(wrapper);
 
 			expect(context.fami).toBe(context.fami);
 		});
@@ -91,7 +93,7 @@ describe("kaito - createFami", () => {
 				) => Context;
 			}) {
 				const req = { headers: new Headers(), special: "test" } as const;
-				const head = { headers: new Headers() };
+				const head = mockHead();
 				return config.getContext(req, head);
 			}
 
@@ -115,15 +117,7 @@ describe("kaito - createFami", () => {
 		test("wrapper works with fami instance", () => {
 			const fami = new Fami(["session", "tracking"]);
 			const wrapper = createFami(fami);
-
-			const req = { headers: new Headers() };
-			const head = { headers: new Headers() };
-			const getContext = () => ({});
-			const context = wrapper(getContext)(req, head);
-
-			if (context instanceof Promise) {
-				expect.unreachable("context should not be a promise");
-			}
+			const { context } = applyContext(wrapper);
 
 			expect(context.fami).toBe(fami);
 			expect(context.cookies).toEqual({
@@ -140,13 +134,11 @@ describe("kaito - createFami", () => {
 			const headers = new Headers({
 				Cookie: "session=abc123; tracking=xyz789",
 			});
-
 			const getSpy = vi.spyOn(headers, "get");
 
 			const req = { headers };
-			const head = { headers: new Headers() };
-			const getContext = () => ({});
-			const context = wrapper(getContext)(req, head);
+			const head = mockHead();
+			const context = wrapper(() => ({}))(req, head);
 
 			if (context instanceof Promise) {
 				expect.unreachable("context should not be a promise");
@@ -175,9 +167,8 @@ describe("kaito - createFami", () => {
 			const getSpy = vi.spyOn(headers, "get");
 
 			const req = { headers };
-			const head = { headers: new Headers() };
-			const getContext = () => ({});
-			const context = wrapper(getContext)(req, head);
+			const head = mockHead();
+			const context = wrapper(() => ({}))(req, head);
 
 			if (context instanceof Promise) {
 				expect.unreachable("context should not be a promise");
@@ -204,19 +195,7 @@ describe("kaito - createFami", () => {
 
 		test("returns frozen object", () => {
 			const wrapper = createFami(["session"]);
-
-			const req = {
-				headers: new Headers({
-					Cookie: "session=abc123",
-				}),
-			};
-			const head = { headers: new Headers() };
-			const getContext = () => ({});
-			const context = wrapper(getContext)(req, head);
-
-			if (context instanceof Promise) {
-				expect.unreachable("context should not be a promise");
-			}
+			const { context } = applyContext(wrapper, mockReq("session=abc123"));
 
 			expect(Object.isFrozen(context.cookies)).toBe(true);
 		});
@@ -224,19 +203,12 @@ describe("kaito - createFami", () => {
 		test("returns all parsed cookies in multiple headers", () => {
 			const wrapper = createFami(["session", "tracking", "testing"]);
 
-			const req = { headers: new Headers() };
-
+			const req = mockReq();
 			// these will get combined once the internal .get("Cookie") is called
 			req.headers.append("Cookie", "session=abc123; testing=123");
 			req.headers.append("Cookie", "tracking=xyz789");
 
-			const head = { headers: new Headers() };
-			const getContext = () => ({});
-			const context = wrapper(getContext)(req, head);
-
-			if (context instanceof Promise) {
-				expect.unreachable("context should not be a promise");
-			}
+			const { context } = applyContext(wrapper, req);
 
 			expect(context.cookies).toEqual({
 				session: "abc123",
@@ -249,15 +221,7 @@ describe("kaito - createFami", () => {
 	describe("setCookie method", () => {
 		test("appends Set-Cookie header to response", () => {
 			const wrapper = createFami(["session"]);
-
-			const req = { headers: new Headers() };
-			const head = { headers: new Headers() };
-			const getContext = () => ({});
-			const context = wrapper(getContext)(req, head);
-
-			if (context instanceof Promise) {
-				expect.unreachable("context should not be a promise");
-			}
+			const { context, head } = applyContext(wrapper);
 
 			context.setCookie("session", "new_value");
 
@@ -266,15 +230,7 @@ describe("kaito - createFami", () => {
 
 		test("delegates to fami.serialize with arguments", () => {
 			const wrapper = createFami(["session"]);
-
-			const req = { headers: new Headers() };
-			const head = { headers: new Headers() };
-			const getContext = () => ({});
-			const context = wrapper(getContext)(req, head);
-
-			if (context instanceof Promise) {
-				expect.unreachable("context should not be a promise");
-			}
+			const { context, head } = applyContext(wrapper);
 
 			context.setCookie("session", "value", {
 				path: "/",
@@ -289,15 +245,7 @@ describe("kaito - createFami", () => {
 
 		test("appends multiple Set-Cookie headers", () => {
 			const wrapper = createFami(["session", "tracking"]);
-
-			const req = { headers: new Headers() };
-			const head = { headers: new Headers() };
-			const getContext = () => ({});
-			const context = wrapper(getContext)(req, head);
-
-			if (context instanceof Promise) {
-				expect.unreachable("context should not be a promise");
-			}
+			const { context, head } = applyContext(wrapper);
 
 			context.setCookie("session", "session_value");
 			context.setCookie("tracking", "tracking_value");
@@ -312,15 +260,7 @@ describe("kaito - createFami", () => {
 	describe("deleteCookie method", () => {
 		test("appends deletion header to response", () => {
 			const wrapper = createFami(["session"]);
-
-			const req = { headers: new Headers() };
-			const head = { headers: new Headers() };
-			const getContext = () => ({});
-			const context = wrapper(getContext)(req, head);
-
-			if (context instanceof Promise) {
-				expect.unreachable("context should not be a promise");
-			}
+			const { context, head } = applyContext(wrapper);
 
 			context.deleteCookie("session");
 
@@ -337,15 +277,7 @@ describe("kaito - createFami", () => {
 					domain: "example.com",
 				},
 			]);
-
-			const req = { headers: new Headers() };
-			const head = { headers: new Headers() };
-			const getContext = () => ({});
-			const context = wrapper(getContext)(req, head);
-
-			if (context instanceof Promise) {
-				expect.unreachable("context should not be a promise");
-			}
+			const { context, head } = applyContext(wrapper);
 
 			context.deleteCookie("session");
 
@@ -357,15 +289,7 @@ describe("kaito - createFami", () => {
 
 		test("appends multiple deletion headers", () => {
 			const wrapper = createFami(["session", "tracking"]);
-
-			const req = { headers: new Headers() };
-			const head = { headers: new Headers() };
-			const getContext = () => ({});
-			const context = wrapper(getContext)(req, head);
-
-			if (context instanceof Promise) {
-				expect.unreachable("context should not be a promise");
-			}
+			const { context, head } = applyContext(wrapper);
 
 			context.deleteCookie("session");
 			context.deleteCookie("tracking");
@@ -379,12 +303,8 @@ describe("kaito - createFami", () => {
 		test("awaits async user context and merges with fami context", async () => {
 			const wrapper = createFami(["session"]);
 
-			const req = {
-				headers: new Headers({
-					Cookie: "session=abc123",
-				}),
-			};
-			const head = { headers: new Headers() };
+			const req = mockReq("session=abc123");
+			const head = mockHead();
 			const getContext = async () => {
 				await new Promise((resolve) => setTimeout(resolve, 10));
 				return { userId: 456 };
@@ -409,8 +329,8 @@ describe("kaito - createFami", () => {
 		test("fami methods work with async context", async () => {
 			const wrapper = createFami(["session"]);
 
-			const req = { headers: new Headers() };
-			const head = { headers: new Headers() };
+			const req = mockReq();
+			const head = mockHead();
 			const getContext = async () => {
 				await new Promise((resolve) => setTimeout(resolve, 10));
 				return { status: "authenticated" };
@@ -436,14 +356,9 @@ describe("kaito - createFami", () => {
 		test("read cookies, set new ones, delete old ones", () => {
 			const wrapper = createFami(["session", "tracking", "preferences"]);
 
-			const req = {
-				headers: new Headers({
-					Cookie: "session=old_session; tracking=track_123",
-				}),
-			};
-			const head = { headers: new Headers() };
-			const getContext = () => ({ timestamp: Date.now() });
-			const context = wrapper(getContext)(req, head);
+			const req = mockReq("session=old_session; tracking=track_123");
+			const head = mockHead();
+			const context = wrapper(() => ({ timestamp: Date.now() }))(req, head);
 
 			if (context instanceof Promise) {
 				expect.unreachable("context should not be a promise");
@@ -466,15 +381,7 @@ describe("kaito - createFami", () => {
 
 		test("works with empty cookie definitions", () => {
 			const wrapper = createFami([]);
-
-			const req = { headers: new Headers() };
-			const head = { headers: new Headers() };
-			const getContext = () => ({});
-			const context = wrapper(getContext)(req, head);
-
-			if (context instanceof Promise) {
-				expect.unreachable("context should not be a promise");
-			}
+			const { context } = applyContext(wrapper);
 
 			expect(context.fami).toBeDefined();
 			expect(context.cookies).toEqual({});
@@ -483,8 +390,8 @@ describe("kaito - createFami", () => {
 		test("ensure no overlap between user context and fami context", () => {
 			const wrapper = createFami(["session"]);
 
-			const req = { headers: new Headers() };
-			const head = { headers: new Headers() };
+			const req = mockReq();
+			const head = mockHead();
 			const getContext = () => ({
 				cookies: { session: "test" },
 				setCookie: null,
