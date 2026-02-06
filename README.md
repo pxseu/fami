@@ -17,6 +17,7 @@ Working with cookies shouldn't be complicated or scary. **fami** makes HTTP cook
   - [Low-level API](#lowlevel-api)
 - [Framework Integration](#framework-integration)
   - [Kaito](#kaito)
+  - [Express](#express)
 - [RFC Compliance](#rfc-compliance)
 - [Inspirations](#inspirations)
 - [Development](#development)
@@ -26,7 +27,7 @@ Working with cookies shouldn't be complicated or scary. **fami** makes HTTP cook
 
 - Schema-based abstraction for cookie definitions and serializing/parsing cookies with type safety
 - Flexible cookie parsing/serialization
-- First‑class integration with [**Kaito**](https://github.com/kaito-http/kaito)
+- First‑class integration with [**Express**](https://expressjs.com/) and [**Kaito**](https://github.com/kaito-http/kaito)
 - Safe, predictable behavior following the latest HTTP State Management draft ([RFC 6265bis](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-21))
 - Strong TypeScript support with extensive JSDoc
 - Zero dependencies, tiny footprint
@@ -173,6 +174,39 @@ Bun.serve({
 ```
 
 For more details, you can take a look at the [examples](./examples/kaito/index.ts).
+
+### Express
+
+**[Express](https://expressjs.com/)** is the most popular web framework for Node.js.
+
+fami provides a dedicated Express adapter through `fami/express` that gives you type-safe cookie management with full Express autocomplete. The adapter provides a middleware that augments `req` and `res` with fami's methods, and a `handler()` wrapper that narrows the types so `req.cookies`, `res.setCookie()`, `res.deleteCookie()` and `res.json()` all have full autocomplete and type safety.
+
+> [!IMPORTANT]
+> You MUST install the `@types/express` package manually, for the best experience.
+
+```ts
+import express from "express";
+import { createFami } from "fami/express";
+
+const app = express();
+const fami = createFami(["session"]);
+
+app.use(fami.middleware());
+
+app.get(
+  "/",
+  fami.handler((req, res) => {
+    const session = req.cookies.session; // typed as string | undefined
+
+    res.setCookie("session", "value"); // autocomplete for cookie names
+    res.json({ session }); // full Express autocomplete
+  })
+);
+
+app.listen(3000);
+```
+
+For more details, you can take a look at the [examples](./examples/express/index.ts).
 
 ## RFC Compliance
 
