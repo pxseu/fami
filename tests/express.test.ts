@@ -1,9 +1,9 @@
 import { describe, expect, test, vi } from "bun:test";
 import {
+	createFami,
 	type FamiExpress,
 	type FamiRequest,
 	type FamiResponse,
-	createFami,
 } from "../src/express";
 import { Fami } from "../src/fami";
 
@@ -43,9 +43,8 @@ function mockRes() {
 
 function noop() {}
 
-
 function applyMiddleware<CookieName extends string>(
-	fami: FamiExpress<CookieName, any, any>,
+	fami: FamiExpress<CookieName>,
 	req: ReturnType<typeof mockReq>,
 	mock: ReturnType<typeof mockRes>,
 	next?: (err?: unknown) => void,
@@ -441,10 +440,13 @@ describe("express - createFami", () => {
 			const handlerFn = vi.fn();
 			const wrappedHandler = fami.handler(handlerFn);
 
+			// handler is identity — calling wrapped === calling original
+			expect(wrappedHandler).toBe(handlerFn);
+
 			const req = mockReq();
 			const { res } = mockRes();
 
-			wrappedHandler(req, res, noop);
+			handlerFn(req, res, noop);
 
 			expect(handlerFn).toHaveBeenCalledTimes(1);
 			expect(handlerFn).toHaveBeenCalledWith(req, res, noop);
@@ -527,15 +529,14 @@ describe("express - createFami", () => {
 			const mock = mockRes();
 
 			// Apply middleware to augment req and res
-			applyMiddleware(fami, req, mock);
+			const { res } = applyMiddleware(fami, req, mock);
 
-			// Use handler wrapper (identity at runtime)
-			const handler = fami.handler((_req, res) => {
-				// At runtime, req and res are already augmented by middleware
-				res.setCookie("session", "updated");
-			});
+			// Handler is identity at runtime
+			const callback = vi.fn();
+			expect(fami.handler(callback)).toBe(callback);
 
-			handler(req, mock.res, noop);
+			// After middleware augmentation, res has setCookie
+			res.setCookie("session", "updated");
 
 			// Flush
 			mock.res.writeHead(200);

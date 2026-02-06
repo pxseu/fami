@@ -1,11 +1,12 @@
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { type CookieInit, Fami } from "./fami";
 
-type ExpressRequestStub = { headers: { cookie?: string } };
-type ExpressResponseStub = {
+export type ExpressRequestStub = { headers: { cookie?: string } };
+export type ExpressResponseStub = {
 	append(name: string, value: string): unknown;
 	writeHead(...args: unknown[]): unknown;
 };
-type NextFunctionStub = (err?: unknown) => void;
+export type NextFunctionStub = (err?: unknown) => void;
 
 /**
  * Properties added to the request object by the Fami middleware
@@ -48,11 +49,7 @@ export type FamiResponse<CookieName extends string> = {
  * The Express adapter interface returned by `createFami`.
  * Provides a middleware for runtime augmentation and a handler wrapper for type narrowing.
  */
-export type FamiExpress<
-	CookieName extends string,
-	Request extends ExpressRequestStub,
-	Response extends ExpressResponseStub,
-> = {
+export type FamiExpress<CookieName extends string> = {
 	/**
 	 * Express middleware that augments `req` and `res` with Fami cookie management.
 	 * Must be applied via `app.use()` before routes that use `fami.handler()`.
@@ -63,35 +60,39 @@ export type FamiExpress<
 	 * The middleware patches `res.writeHead` to flush the cookie jar to `Set-Cookie` headers
 	 * right before the response headers are sent.
 	 */
-	middleware(): (req: Request, res: Response, next: NextFunctionStub) => void;
+	middleware(): (
+		req: ExpressRequestStub,
+		res: ExpressResponseStub,
+		next: NextFunctionStub,
+	) => void;
 
 	/**
 	 * Type-safe handler wrapper. The middleware must be applied first via `app.use()`.
 	 * This is an identity function at runtime (zero cost) -- it only narrows TypeScript types
 	 * so that `req.cookies`, `req.fami`, `res.setCookie()`, `res.deleteCookie()` and `res.cookieJar`
-	 * are properly typed.
+	 * are properly typed, while preserving full Express `Request` and `Response` autocomplete.
 	 *
 	 * @example
 	 * ```ts
 	 * app.get("/", fami.handler((req, res) => {
 	 *   req.cookies.session;              // autocomplete + type-safe
 	 *   res.setCookie("session", "val");  // typed cookie name
-	 *   res.json(req.cookies);
+	 *   res.json(req.cookies);            // full Express autocomplete
 	 * }));
 	 * ```
 	 */
-	handler<Request, Response>(
+	handler(
 		fn: (
 			req: Omit<Request, keyof FamiRequest<CookieName>> &
 				FamiRequest<CookieName>,
 			res: Omit<Response, keyof FamiResponse<CookieName>> &
 				FamiResponse<CookieName>,
-			next: NextFunctionStub,
+			next: NextFunction,
 		) => void,
-	): (req: Request, res: Response, next: NextFunctionStub) => void;
+	): RequestHandler;
 };
 
-function createRequest<CookieName extends string>(
+function augmentRequest<CookieName extends string>(
 	req: ExpressRequestStub,
 	fami: Fami<CookieName>,
 ) {
@@ -113,7 +114,7 @@ function createRequest<CookieName extends string>(
 	});
 }
 
-function createResponse<CookieName extends string>(
+function augmentResponse<CookieName extends string>(
 	res: ExpressResponseStub,
 	fami: Fami<CookieName>,
 ) {
@@ -178,7 +179,7 @@ function createResponse<CookieName extends string>(
  */
 export function createFami<CookieName extends string>(
 	cookieInit: readonly CookieInit<CookieName>[] | Fami<CookieName>,
-): FamiExpress<CookieName, ExpressRequestStub, ExpressResponseStub> {
+): FamiExpress<CookieName> {
 	const fami = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 
 	return {
@@ -188,20 +189,14 @@ export function createFami<CookieName extends string>(
 				res: ExpressResponseStub,
 				next: NextFunctionStub,
 			) => {
-				createRequest(req, fami);
-				createResponse(res, fami);
+				augmentRequest(req, fami);
+				augmentResponse(res, fami);
 				next();
 			};
 		},
 
-		handler(fn) {
-			return fn as ReturnType<
-				FamiExpress<
-					CookieName,
-					ExpressRequestStub,
-					ExpressResponseStub
-				>["handler"]
-			>;
-		},
+		// Identity function -- the cast is safe because the middleware
+		// has already augmented req/res at runtime.
+		handler: (fn) => fn as unknown as RequestHandler,
 	};
 }

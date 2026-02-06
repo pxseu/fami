@@ -1,12 +1,12 @@
 import { type CookieInit, Fami } from "./fami";
 
-type KaitoRequestStub = { headers: Headers };
-type KaitoHeadStub = { headers: Headers };
 type MaybePromise<T> = T | Promise<T>;
-
 type NoOverlap<T, U> = {
 	[K in keyof T & keyof U]: never;
 };
+
+export type KaitoRequestStub = { headers: Headers };
+export type KaitoHeadStub = { headers: Headers };
 
 export type GetContext<Request, Head, Return extends object> = (
 	req: Request,
