@@ -3,11 +3,11 @@
 		"dev": "bun --watch index.ts"
 	},
 	"devDependencies": {
-		"@types/bun": "latest",
+		"@types/bun": "1.3.8",
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
 		"@kaito-http/core": "^4.0.0-beta.29",
-		"fami": "^1.0.12"
+		"fami": "^1.0.16"
 	}
 }
