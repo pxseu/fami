@@ -92,7 +92,7 @@ export type FamiExpress<CookieName extends string> = {
 	): RequestHandler;
 };
 
-function augmentRequest<CookieName extends string>(
+function createRequest<CookieName extends string>(
 	req: ExpressRequestStub,
 	fami: Fami<CookieName>,
 ) {
@@ -114,7 +114,7 @@ function augmentRequest<CookieName extends string>(
 	});
 }
 
-function augmentResponse<CookieName extends string>(
+function createResponse<CookieName extends string>(
 	res: ExpressResponseStub,
 	fami: Fami<CookieName>,
 ) {
@@ -189,14 +189,12 @@ export function createFami<CookieName extends string>(
 				res: ExpressResponseStub,
 				next: NextFunctionStub,
 			) => {
-				augmentRequest(req, fami);
-				augmentResponse(res, fami);
+				createRequest(req, fami);
+				createResponse(res, fami);
 				next();
 			};
 		},
 
-		// Identity function -- the cast is safe because the middleware
-		// has already augmented req/res at runtime.
 		handler: (fn) => fn as unknown as RequestHandler,
 	};
 }
