@@ -3,7 +3,8 @@ name: Tests
 on:
   push:
     branches:
-      - "*"
+      - "**"
+      - "!v*"
 
 permissions:
   contents: read
