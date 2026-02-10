@@ -25,9 +25,9 @@ describe("encodeCookieValue", () => {
 			);
 		});
 
-		test("quotes values with semicolons", () => {
+		test("encodes semicolons", () => {
 			expect(encodeCookieValue("bar;with;semicolons")).toBe(
-				'"bar;with;semicolons"',
+				"bar%3Bwith%3Bsemicolons",
 			);
 		});
 

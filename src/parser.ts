@@ -5,7 +5,9 @@ import {
 	decodeCookieValue,
 	encodeCookieValue,
 	formatHttpDate,
+	isValidCookieDomain,
 	isValidCookieName,
+	isValidCookiePath,
 	lowercase,
 	NAME_VALUE_MATCHER,
 	newObject,
@@ -41,7 +43,7 @@ export function parse(cookieHeader: string | null | undefined): Cookies {
 			continue;
 		}
 
-		if (cookies[trimmedName]) {
+		if (trimmedName in cookies) {
 			// if the cookie already exists, skip it
 			continue;
 		}
@@ -65,6 +67,14 @@ export function serialize(
 ): string {
 	if (!name || !isValidCookieName(name)) {
 		throw new InvalidNameError(name);
+	}
+
+	if (attributes?.domain && !isValidCookieDomain(attributes.domain)) {
+		throw new InvalidAttributeError("Domain", attributes.domain);
+	}
+
+	if (attributes?.path && !isValidCookiePath(attributes.path)) {
+		throw new InvalidAttributeError("Path", attributes.path);
 	}
 
 	let result = `${name}=${encodeCookieValue(value || "")}`;
@@ -103,11 +113,13 @@ export function serialize(
 		if (!VALID_PRIORITY_VALUES.includes(lower)) {
 			throw new InvalidAttributeError("priority", lower, VALID_PRIORITY_VALUES);
 		}
+
 		result += `; Priority=${capitalize(lower)}`;
 	}
 
 	if (attributes?.sameSite) {
 		const lower = lowercase(attributes.sameSite);
+
 		if (!VALID_SAME_SITE_VALUES.includes(lower)) {
 			throw new InvalidAttributeError(
 				"SameSite",
@@ -115,6 +127,7 @@ export function serialize(
 				VALID_SAME_SITE_VALUES,
 			);
 		}
+
 		result += `; SameSite=${capitalize(lower)}`;
 	}
 

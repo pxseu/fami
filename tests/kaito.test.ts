@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "bun:test";
 import { Fami } from "../src/fami";
-import { type FamiContextWrapper, createFami } from "../src/kaito";
+import { createFami, type FamiContextWrapper } from "../src/kaito";
 
 function mockReq(cookie?: string) {
 	const headers = new Headers();

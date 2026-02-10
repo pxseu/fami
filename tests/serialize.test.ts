@@ -3,6 +3,7 @@ import {
 	InvalidAttributeError,
 	InvalidDateError,
 	InvalidNameError,
+	parse,
 	serialize,
 } from "../src";
 
@@ -58,9 +59,15 @@ describe("serialize", () => {
 			expect(result).toBe("foo=E=mc^2");
 		});
 
-		test("handles values with semicolons (uses quoting)", () => {
+		test("encodes values with semicolons to preserve round-trips", () => {
 			const result = serialize("foo", "bar;with;semicolons");
-			expect(result).toBe('foo="bar;with;semicolons"');
+			expect(result).toBe("foo=bar%3Bwith%3Bsemicolons");
+		});
+
+		test("round-trips semicolons through parse", () => {
+			const serialized = serialize("foo", "bar;with;semicolons");
+			const parsed = parse(serialized);
+			expect(parsed.foo).toBe("bar;with;semicolons");
 		});
 
 		test("encodes non-ASCII characters (fallback to encoding)", () => {
@@ -185,6 +192,18 @@ describe("serialize", () => {
 			expect(() =>
 				serialize("test", "value", { expires: new Date("invalid") }),
 			).toThrow("Invalid date");
+		});
+
+		test("throws error for invalid domain", () => {
+			expect(() =>
+				serialize("test", "value", { domain: "example.com\r\nX-Test: 1" }),
+			).toThrow(InvalidAttributeError);
+		});
+
+		test("throws error for invalid path", () => {
+			expect(() =>
+				serialize("test", "value", { path: "/\r\nX-Test: 1" }),
+			).toThrow(InvalidAttributeError);
 		});
 	});
 });

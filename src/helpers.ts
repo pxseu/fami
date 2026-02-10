@@ -17,13 +17,23 @@ export function formatHttpDate(date: Date): string {
 // RFC 6265bis allows most characters except control chars and separators, so basically HTTP tokens as per RFC 2616
 // biome-ignore lint/suspicious/noControlCharactersInRegex: as above
 const INVALID_CHARACTERS = /[\x00-\x1F\x7F()<>@,;:\\"/[\]?={}\s]/;
-
 export function isValidCookieName(name: string): boolean {
 	return !!name && !INVALID_CHARACTERS.test(name);
 }
 
-const ESCAPE_CHARACTERS = /\\(.)/g;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: simmilar as above
+const INVALID_DOMAIN_CHARACTERS = /[\x00-\x20\x7F;,]/;
+export function isValidCookieDomain(domain: string): boolean {
+	return !!domain && !INVALID_DOMAIN_CHARACTERS.test(domain);
+}
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: simmilar as above
+const INVALID_PATH_CHARACTERS = /[\x00-\x1F\x7F;]/;
+export function isValidCookiePath(path: string): boolean {
+	return !!path && !INVALID_PATH_CHARACTERS.test(path);
+}
+
+const ESCAPE_CHARACTERS = /\\(.)/g;
 function unquoteCookieValue(value: string): string {
 	// make sure the value is AT least both quotes
 	if (value.length < 2 || !value.startsWith('"') || !value.endsWith('"')) {
@@ -56,11 +66,11 @@ export function decodeCookieValue(value: string): string {
 // Characters that need to be escaped when quoted: backslash and double quote
 const ESCAPABLE_CHARACTERS = /[\\"]/g;
 
-// Matches anything NOT in the range from space (0x20) to tilde (0x7E)
-const NEEDS_ENCODING = /[^\x20-\x7E]/;
+// Encode non-ASCII/control bytes and delimiter characters to preserve round-trips.
+const NEEDS_ENCODING = /[^\x20-\x7E]|[;,]/;
 
 // Characters that need quoting or escaping in unquoted values
-const SPECIAL_CHARACTERS = /[\s",;\\]/;
+const SPECIAL_CHARACTERS = /[\s"\\]/;
 
 export function encodeCookieValue(value: string): string {
 	if (NEEDS_ENCODING.test(value)) {

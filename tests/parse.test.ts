@@ -45,6 +45,14 @@ describe("parse", () => {
 				test: "first",
 			});
 		});
+
+		test("handles duplicate cookie names when first value is empty", () => {
+			const result = parse("test=; test=second");
+
+			expect(result).toEqual({
+				test: "",
+			});
+		});
 	});
 
 	describe("quoted values", () => {
