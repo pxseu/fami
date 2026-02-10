@@ -7,6 +7,6 @@
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
-		"fami": "^1.0.16"
+		"fami": "^1.0.18"
 	}
 }
