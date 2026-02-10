@@ -69,14 +69,6 @@ export function serialize(
 		throw new InvalidNameError(name);
 	}
 
-	if (attributes?.domain && !isValidCookieDomain(attributes.domain)) {
-		throw new InvalidAttributeError("Domain", attributes.domain);
-	}
-
-	if (attributes?.path && !isValidCookiePath(attributes.path)) {
-		throw new InvalidAttributeError("Path", attributes.path);
-	}
-
 	let result = `${name}=${encodeCookieValue(value || "")}`;
 
 	if (attributes?.expires) {
@@ -87,8 +79,16 @@ export function serialize(
 		result += `; Max-Age=${attributes.maxAge}`;
 	}
 
+	if (attributes?.domain && !isValidCookieDomain(attributes.domain)) {
+		throw new InvalidAttributeError("domain", attributes.domain);
+	}
+
 	if (attributes?.domain) {
 		result += `; Domain=${attributes.domain}`;
+	}
+
+	if (attributes?.path && !isValidCookiePath(attributes.path)) {
+		throw new InvalidAttributeError("path", attributes.path);
 	}
 
 	if (attributes?.path) {

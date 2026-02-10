@@ -1,5 +1,13 @@
-import { FamiError, InvalidNameError } from "./errors";
-import { isValidCookieName, newObject } from "./helpers";
+import { FamiError, InvalidAttributeError, InvalidNameError } from "./errors";
+import {
+	isValidCookieDomain,
+	isValidCookieName,
+	isValidCookiePath,
+	lowercase,
+	newObject,
+	VALID_PRIORITY_VALUES,
+	VALID_SAME_SITE_VALUES,
+} from "./helpers";
 import { parse as parseRaw, serialize as serializeRaw } from "./parser";
 import type { CookieAttributes } from "./types";
 
@@ -90,6 +98,38 @@ export class Fami<CookieName extends string> {
 
 				if (!isValidCookieName(name)) {
 					throw new InvalidNameError(name);
+				}
+
+				if (definition?.domain && !isValidCookieDomain(definition.domain)) {
+					throw new InvalidAttributeError("domain", definition.domain);
+				}
+
+				if (definition?.path && !isValidCookiePath(definition.path)) {
+					throw new InvalidAttributeError("path", definition.path);
+				}
+
+				if (definition?.priority) {
+					const lower = lowercase(definition.priority);
+
+					if (!VALID_PRIORITY_VALUES.includes(lower)) {
+						throw new InvalidAttributeError(
+							"priority",
+							lower,
+							VALID_PRIORITY_VALUES,
+						);
+					}
+				}
+
+				if (definition?.sameSite) {
+					const lower = lowercase(definition.sameSite);
+
+					if (!VALID_SAME_SITE_VALUES.includes(lower)) {
+						throw new InvalidAttributeError(
+							"SameSite",
+							lower,
+							VALID_SAME_SITE_VALUES,
+						);
+					}
 				}
 
 				if (typeof input === "string") {
