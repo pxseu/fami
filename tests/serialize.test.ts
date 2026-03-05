@@ -38,6 +38,28 @@ describe("serialize", () => {
 		});
 	});
 
+	describe("non-string values", () => {
+		test("serializes number value", () => {
+			expect(serialize("counter", 42)).toBe("counter=42");
+		});
+
+		test("serializes zero", () => {
+			expect(serialize("counter", 0)).toBe("counter=0");
+		});
+
+		test("serializes negative number", () => {
+			expect(serialize("offset", -1)).toBe("offset=-1");
+		});
+
+		test("serializes boolean true", () => {
+			expect(serialize("enabled", true)).toBe("enabled=true");
+		});
+
+		test("serializes boolean false", () => {
+			expect(serialize("enabled", false)).toBe("enabled=false");
+		});
+	});
+
 	describe("value encoding", () => {
 		test("quotes values with special characters", () => {
 			const result = serialize("test", "value with spaces");

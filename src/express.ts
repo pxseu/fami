@@ -1,5 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { type CookieInit, Fami } from "./fami";
+import { type CookieInit, Fami, type FamiCookies } from "./fami";
 
 export type ExpressRequestStub = { headers: { cookie?: string } };
 export type ExpressResponseStub = {
@@ -96,12 +96,12 @@ function createRequest<CookieName extends string>(
 	req: ExpressRequestStub,
 	fami: Fami<CookieName>,
 ) {
-	let lazyCookies: Record<CookieName, string | undefined> | undefined;
+	let lazyCookies: FamiCookies<CookieName> | undefined;
 
 	Object.defineProperties(req, {
 		fami: {
 			get: () => fami,
-			configurable: true,
+			configurable: false,
 		},
 		cookies: {
 			get() {
@@ -109,7 +109,7 @@ function createRequest<CookieName extends string>(
 				lazyCookies = Object.freeze(fami.parse(req.headers.cookie));
 				return lazyCookies;
 			},
-			configurable: true,
+			configurable: false,
 		},
 	});
 }
@@ -126,17 +126,17 @@ function createResponse<CookieName extends string>(
 			value: (...args: Parameters<typeof fami.serialize>) => {
 				jar.set(args[0], fami.serialize(...args));
 			},
-			configurable: true,
+			configurable: false,
 		},
 		deleteCookie: {
 			value: (...args: Parameters<typeof fami.delete>) => {
 				jar.set(args[0], fami.delete(...args));
 			},
-			configurable: true,
+			configurable: false,
 		},
 		cookieJar: {
 			get: () => jar,
-			configurable: true,
+			configurable: false,
 		},
 		writeHead: {
 			value: function (this: ExpressResponseStub, ...args: unknown[]) {

@@ -1,4 +1,4 @@
-import { type CookieInit, Fami } from "./fami";
+import { type CookieInit, Fami, type FamiCookies } from "./fami";
 
 type MaybePromise<T> = T | Promise<T>;
 type NoOverlap<T, U> = {
@@ -53,7 +53,7 @@ function createFamiContext<CookieName extends string, Return extends object>(
 	head: KaitoHeadStub,
 	context: Return,
 ): Return & FamiContext<CookieName> {
-	let lazyCookies: Record<CookieName, string | undefined> | undefined;
+	let lazyCookies: FamiCookies<CookieName> | undefined;
 
 	return {
 		...context,

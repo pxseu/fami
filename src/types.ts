@@ -1,5 +1,10 @@
 import type { VALID_PRIORITY_VALUES, VALID_SAME_SITE_VALUES } from "./helpers";
 
+/**
+ * Primitive cookie values, that can be used without any special serializing.
+ */
+export type CookieValue = string | number | boolean;
+
 export type CookieAttributes = Partial<{
 	/**
 	 * The date and time after which the cookie will be considered expired

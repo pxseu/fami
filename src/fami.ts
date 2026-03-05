@@ -1,15 +1,21 @@
 import { FamiError, InvalidAttributeError, InvalidNameError } from "./errors";
 import {
+	entries,
 	isValidCookieDomain,
 	isValidCookieName,
 	isValidCookiePath,
+	keys,
 	lowercase,
 	newObject,
 	VALID_PRIORITY_VALUES,
 	VALID_SAME_SITE_VALUES,
 } from "./helpers";
 import { parse as parseRaw, serialize as serializeRaw } from "./parser";
-import type { CookieAttributes } from "./types";
+import type { CookieAttributes, CookieValue } from "./types";
+
+export type FamiCookies<CookieName extends string> = Partial<
+	Record<CookieName, string>
+>;
 
 // Phantom type to ensure the name is "used" by TypeScript
 export type CookieDefinition<_ extends string> = Partial<{
@@ -150,9 +156,9 @@ export class Fami<CookieName extends string> {
 	 * @param attributes optional attributes to override or extend the defaults
 	 * @returns Set-Cookie header value string
 	 */
-	serialize<Name extends CookieName>(
-		name: Name,
-		value: string,
+	serialize(
+		name: CookieName,
+		value: CookieValue,
 		attributes?: CookieAttributes,
 	): string {
 		if (!this.#cookies[name]) {
@@ -161,16 +167,12 @@ export class Fami<CookieName extends string> {
 			);
 		}
 
-		// Merge default attributes with provided attributes
-		const { expires: expiresFn, ...defaultAttributes } =
-			this.#cookies[name] ?? {};
-
-		const expires = attributes?.expires ?? expiresFn?.();
+		const { expires: expiresFn, ...defaults } = this.#cookies[name] ?? {};
 
 		return serializeRaw(name, value, {
-			...defaultAttributes,
+			...defaults,
 			...attributes,
-			expires,
+			expires: attributes?.expires ?? expiresFn?.(),
 		});
 	}
 
@@ -181,21 +183,22 @@ export class Fami<CookieName extends string> {
 	 */
 	serializeAll(
 		cookies: Partial<
-			Record<CookieName, string | ({ value: string } & CookieAttributes)>
+			Record<
+				CookieName,
+				CookieValue | ({ value: CookieValue } & CookieAttributes)
+			>
 		>,
 	): string[] {
 		const out: string[] = [];
 
-		for (const [name, maybeValue] of Object.entries(cookies)) {
+		for (const [name, maybeValue] of entries(cookies)) {
 			// undefined values are ignored
 			if (maybeValue == null) continue;
 
 			const { value, ...attributes } =
-				typeof maybeValue === "string"
-					? { value: maybeValue }
-					: (maybeValue as { value: string } & CookieAttributes);
+				typeof maybeValue !== "object" ? { value: maybeValue } : maybeValue;
 
-			out.push(this.serialize(name as CookieName, value, attributes));
+			out.push(this.serialize(name, value, attributes));
 		}
 
 		return out;
@@ -206,16 +209,16 @@ export class Fami<CookieName extends string> {
 	 * @param cookieHeader The Cookie header value to parse
 	 * @returns A record of cookie names and values
 	 */
-	parse(
-		cookieHeader: Parameters<typeof parseRaw>[0],
-	): Record<CookieName, string | undefined> {
+	parse(cookieHeader: Parameters<typeof parseRaw>[0]): FamiCookies<CookieName> {
 		const parsed = parseRaw(cookieHeader);
 
-		return Object.entries(this.#cookies).reduce((cookies, [name]) => {
-			cookies[name as CookieName] = parsed[name];
+		const cookies = newObject<FamiCookies<CookieName>>();
 
-			return cookies;
-		}, newObject<Record<CookieName, string | undefined>>());
+		for (const name of keys(this.#cookies)) {
+			cookies[name] = parsed[name];
+		}
+
+		return cookies;
 	}
 
 	/**
@@ -235,9 +238,7 @@ export class Fami<CookieName extends string> {
 	 * @param name the cookie name
 	 * @returns the cookie definition or undefined if not registered
 	 */
-	getDefinition<Name extends CookieName>(
-		name: Name,
-	): CookieDefinition<Name> | undefined {
+	getDefinition(name: CookieName): CookieDefinition<CookieName> | undefined {
 		return this.#cookies[name];
 	}
 

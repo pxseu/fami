@@ -14,7 +14,7 @@ import {
 	VALID_PRIORITY_VALUES,
 	VALID_SAME_SITE_VALUES,
 } from "./helpers";
-import type { CookieAttributes, Cookies } from "./types";
+import type { CookieAttributes, Cookies, CookieValue } from "./types";
 
 /**
  * Parses a Cookie header value (multiple cookies from client) into a Cookies object
@@ -62,14 +62,14 @@ export function parse(cookieHeader: string | null | undefined): Cookies {
  */
 export function serialize(
 	name: string,
-	value: string,
+	value: CookieValue,
 	attributes?: CookieAttributes,
 ): string {
-	if (!name || !isValidCookieName(name)) {
+	if (!isValidCookieName(name)) {
 		throw new InvalidNameError(name);
 	}
 
-	let result = `${name}=${encodeCookieValue(value || "")}`;
+	let result = `${name}=${encodeCookieValue(String(value))}`;
 
 	if (attributes?.expires) {
 		result += `; Expires=${formatHttpDate(attributes.expires)}`;
