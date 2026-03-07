@@ -10,9 +10,9 @@
 	},
 	"devDependencies": {
 		"typescript": "^5.5.2",
-		"wrangler": "^4.64.0"
+		"wrangler": "^4.71.0"
 	},
 	"dependencies": {
-		"fami": "^1.0.18"
+		"fami": "^1.0.19"
 	}
 }

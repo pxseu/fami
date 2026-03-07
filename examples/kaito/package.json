@@ -7,7 +7,7 @@
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
-		"@kaito-http/core": "^4.0.0-beta.29",
-		"fami": "^1.0.18"
+		"@kaito-http/core": "^4.0.0-beta.30",
+		"fami": "^1.0.19"
 	}
 }
