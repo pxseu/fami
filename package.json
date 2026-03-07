@@ -1,6 +1,6 @@
 {
 	"name": "fami",
-	"version": "1.0.18",
+	"version": "1.0.19",
 	"license": "MIT",
 	"description": "Working with cookies shouldn't be complicated or scary.",
 	"type": "module",
