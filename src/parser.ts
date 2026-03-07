@@ -37,16 +37,12 @@ export function parse(cookieHeader: string | null | undefined): Cookies {
 		if (!nameValueMatch) continue;
 
 		const [, name, value] = nameValueMatch;
+
 		const trimmedName = name?.trim();
+		if (!isValidCookieName(trimmedName)) continue;
 
-		if (!trimmedName || !isValidCookieName(trimmedName)) {
-			continue;
-		}
-
-		if (trimmedName in cookies) {
-			// if the cookie already exists, skip it
-			continue;
-		}
+		// if the cookie already exists, skip it
+		if (trimmedName in cookies) continue;
 
 		cookies[trimmedName] = decodeCookieValue((value || "").trim());
 	}
@@ -79,19 +75,19 @@ export function serialize(
 		result += `; Max-Age=${attributes.maxAge}`;
 	}
 
-	if (attributes?.domain && !isValidCookieDomain(attributes.domain)) {
-		throw new InvalidAttributeError("domain", attributes.domain);
-	}
-
 	if (attributes?.domain) {
+		if (!isValidCookieDomain(attributes.domain)) {
+			throw new InvalidAttributeError("domain", attributes.domain);
+		}
+
 		result += `; Domain=${attributes.domain}`;
 	}
 
-	if (attributes?.path && !isValidCookiePath(attributes.path)) {
-		throw new InvalidAttributeError("path", attributes.path);
-	}
-
 	if (attributes?.path) {
+		if (!isValidCookiePath(attributes.path)) {
+			throw new InvalidAttributeError("path", attributes.path);
+		}
+
 		result += `; Path=${attributes.path}`;
 	}
 

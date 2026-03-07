@@ -17,7 +17,7 @@ export function formatHttpDate(date: Date): string {
 // RFC 6265bis allows most characters except control chars and separators, so basically HTTP tokens as per RFC 2616
 // biome-ignore lint/suspicious/noControlCharactersInRegex: as above
 const INVALID_CHARACTERS = /[\x00-\x1F\x7F()<>@,;:\\"/[\]?={}\s]/;
-export function isValidCookieName(name: string): boolean {
+export function isValidCookieName(name: string | undefined): name is string {
 	return !!name && !INVALID_CHARACTERS.test(name);
 }
 
