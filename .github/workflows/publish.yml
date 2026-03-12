@@ -15,12 +15,17 @@ jobs:
     steps:
       - id: tag
         run: |
-          echo "tag_name=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+          VERSION_TAG="${GITHUB_REF#refs/*/}"
+          echo "version_tag=${VERSION_TAG}" >> $GITHUB_OUTPUT
 
-        # no need to pre-release yet
-        #  if [[ ${{ github.event.ref }} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]]; then
-        #    echo "pre_release=true" >> $GITHUB_OUTPUT
-        #  fi
+          # Check if this is a pre-release tag (e.g. v1.0.0-beta.1)
+          if [[ "${VERSION_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-.+ ]]; then
+            echo "pre_release=true" >> $GITHUB_OUTPUT
+            echo "npm_tag=next" >> $GITHUB_OUTPUT
+          else
+            echo "pre_release=false" >> $GITHUB_OUTPUT
+            echo "npm_tag=latest" >> $GITHUB_OUTPUT
+          fi
 
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
@@ -40,7 +45,10 @@ jobs:
       # pipe through xargs to remove whitespace
       - run: echo "FILE_NAME=$(bun pm pack --quiet | xargs)" >> $GITHUB_ENV
       # https://github.com/oven-sh/bun/issues/15601 - provenance is not supported yet by bun :(
-      - run: npm publish $FILE_NAME --provenance --ignore-scripts
-      - run: gh release create ${{ steps.tag.outputs.tag_name }} $FILE_NAME --generate-notes
+      - run: npm publish $FILE_NAME --provenance --ignore-scripts --tag ${{ steps.tag.outputs.npm_tag }}
+      - run: >-
+          gh release create ${{ steps.tag.outputs.version_tag }} $FILE_NAME
+          --generate-notes
+          ${{ steps.tag.outputs.pre_release == 'true' && '--prerelease' || '' }}
         env:
           GH_TOKEN: ${{ github.token }}
