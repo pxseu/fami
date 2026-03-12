@@ -115,3 +115,70 @@ export function keys<T extends object>(obj: T): (keyof T)[] {
 export function isArray<T>(value: unknown): value is readonly T[] {
 	return Array.isArray(value);
 }
+
+const ALGORITHM = {
+	name: "HMAC",
+	hash: "SHA-256",
+};
+const SEPARATOR = ".";
+const USAGE = ["sign", "verify"];
+
+const encoder = new TextEncoder();
+
+export async function importKey(key: string | CryptoKey): Promise<CryptoKey> {
+	if (typeof key === "string") {
+		const rawKey = encoder.encode(key);
+		return await crypto.subtle.importKey(
+			"raw",
+			rawKey,
+			ALGORITHM,
+			false,
+			USAGE,
+		);
+	}
+
+	for (const usage of USAGE) {
+		if (!key.usages.includes(usage)) {
+			throw new Error(`CryptoKey must have usage "${usage}"`);
+		}
+	}
+
+	return key;
+}
+
+export async function signValue(
+	key: CryptoKey,
+	value: string,
+): Promise<string> {
+	const data = encoder.encode(value);
+	const raw = await crypto.subtle.sign(ALGORITHM, key, data);
+	const sig = new Uint8Array(raw).toBase64({
+		alphabet: "base64url",
+		omitPadding: true,
+	});
+
+	return `${value}${SEPARATOR}${sig}`;
+}
+
+export async function verifyValue(
+	key: CryptoKey,
+	signedValue: string,
+): Promise<string | null> {
+	const separatorIndex = signedValue.lastIndexOf(SEPARATOR);
+
+	if (separatorIndex === -1) {
+		return null;
+	}
+
+	const value = signedValue.slice(0, separatorIndex);
+	const raw = signedValue.slice(separatorIndex + 1);
+
+	const data = encoder.encode(value);
+	const sig = Uint8Array.fromBase64(raw, {
+		alphabet: "base64url",
+	});
+
+	const isValid = await crypto.subtle.verify(ALGORITHM, key, sig, data);
+
+	return isValid ? value : null;
+}

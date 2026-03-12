@@ -14,8 +14,18 @@ import {
 import { parse as parseRaw, serialize as serializeRaw } from "./parser";
 import type { CookieAttributes, CookieValue } from "./types";
 
+/**
+ * Cookies returned by `fami`
+ */
 export type FamiCookies<CookieName extends string> = Partial<
 	Record<CookieName, string>
+>;
+
+/**
+ *  Cookies that have been verified by `fami`. The value is either the original string or null if the signature is invalid.
+ */
+export type FamiSignedCookies<CookieName extends string> = Partial<
+	Record<CookieName, string | null>
 >;
 
 // Phantom type to ensure the name is "used" by TypeScript
