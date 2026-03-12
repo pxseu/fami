@@ -1,11 +1,13 @@
 import { create } from "@kaito-http/core";
-import { createFami } from "fami/kaito";
-
-const context = createFami(["session"]);
+import { fami } from "fami/kaito";
 
 const kaito = create({
-	getContext: context((req, head) => ({ req, head })),
-});
+	getContext: (req, head) => ({ req, head }),
+}).pipe(
+	fami({
+		session: { secure: true },
+	}),
+);
 
 const app = kaito
 	.get("/", ({ ctx }) => ctx.cookies)
