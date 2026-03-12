@@ -5,7 +5,7 @@ const kaito = create({
 	getContext: (req, head) => ({ req, head }),
 }).pipe(
 	fami({
-		session: { secure: true },
+		session: { maxAge: 60 * 60 },
 	}),
 );
 
