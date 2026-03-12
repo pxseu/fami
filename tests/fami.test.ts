@@ -6,6 +6,16 @@ import {
 	InvalidNameError,
 } from "../src";
 
+/**
+ * Helper that produces a compile error when `T` is not exactly `Expected`.
+ * Usage: `const _: Expect<typeof value, "a" | "b"> = true;`
+ */
+type Expect<T, Expected> = [T] extends [Expected]
+	? [Expected] extends [T]
+		? true
+		: false
+	: false;
+
 describe("Fami", () => {
 	describe("constructor", () => {
 		test("initializes with string cookie names", () => {
@@ -25,6 +35,22 @@ describe("Fami", () => {
 			]);
 
 			expect(fami.getNames()).toEqual(["session"]);
+			expect(fami.getDefinition("session")).toEqual({
+				httpOnly: true,
+				secure: true,
+				sameSite: "strict",
+			});
+		});
+
+		test("initializes with object-based cookie definitions", () => {
+			const fami = new Fami({
+				tracker: {},
+				session: { httpOnly: true, secure: true, sameSite: "strict" },
+			});
+
+			expect(fami.getNames()).toContain("tracker");
+			expect(fami.getNames()).toContain("session");
+			expect(fami.getDefinition("tracker")).toEqual({});
 			expect(fami.getDefinition("session")).toEqual({
 				httpOnly: true,
 				secure: true,
@@ -60,6 +86,137 @@ describe("Fami", () => {
 			expect(
 				() => new Fami([{ name: "invalid name", httpOnly: true }]),
 			).toThrow(InvalidNameError);
+		});
+
+		test("object-based constructor throws error for invalid cookie names", () => {
+			expect(() => new Fami({ "invalid name": {} })).toThrow(InvalidNameError);
+		});
+
+		test("object-based constructor validates domain", () => {
+			expect(
+				() => new Fami({ session: { domain: "bad domain value" } }),
+			).toThrow();
+		});
+
+		test("object-based constructor validates path", () => {
+			expect(() => new Fami({ session: { path: "bad\x00path" } })).toThrow();
+		});
+	});
+
+	describe("object-based constructor usage", () => {
+		test("serialize works with object-based constructor", () => {
+			const fami = new Fami({
+				session: { httpOnly: true, secure: true, sameSite: "strict" },
+			});
+
+			const result = fami.serialize("session", "abc123");
+
+			expect(result).toContain("session=abc123");
+			expect(result).toContain("HttpOnly");
+			expect(result).toContain("Secure");
+			expect(result).toContain("SameSite=Strict");
+		});
+
+		test("parse works with object-based constructor", () => {
+			const fami = new Fami({
+				session: { httpOnly: true },
+				tracking: {},
+			});
+
+			const result = fami.parse("session=abc123; tracking=xyz789");
+
+			expect(result).toEqual({
+				session: "abc123",
+				tracking: "xyz789",
+			});
+		});
+
+		test("delete works with object-based constructor", () => {
+			const fami = new Fami({
+				session: { path: "/", domain: "example.com" },
+			});
+
+			const result = fami.delete("session");
+
+			expect(result).toContain("session=");
+			expect(result).toContain("Max-Age=0");
+			expect(result).toContain("Expires=Thu, 01 Jan 1970 00:00:00 GMT");
+			expect(result).toContain("Path=/");
+			expect(result).toContain("Domain=example.com");
+		});
+
+		test("serializeAll works with object-based constructor", () => {
+			const fami = new Fami({
+				session: { httpOnly: true },
+				tracking: {},
+			});
+
+			const result = fami.serializeAll({
+				session: "abc123",
+				tracking: "xyz789",
+			});
+
+			expect(result[0]).toContain("session=abc123");
+			expect(result[0]).toContain("HttpOnly");
+			expect(result[1]).toBe("tracking=xyz789");
+		});
+
+		test("has works with object-based constructor", () => {
+			const fami = new Fami({
+				session: {},
+			});
+
+			expect(fami.has("session")).toBe(true);
+			expect(fami.has("unregistered")).toBe(false);
+		});
+
+		test("getDefinition works with object-based constructor", () => {
+			const fami = new Fami({
+				session: { httpOnly: true, secure: true },
+			});
+
+			expect(fami.getDefinition("session")).toEqual({
+				httpOnly: true,
+				secure: true,
+			});
+		});
+
+		test("cookies getter works with object-based constructor", () => {
+			const fami = new Fami({
+				tracking: {},
+				session: { httpOnly: true },
+			});
+
+			const cookies = fami.cookies;
+
+			expect(cookies).toEqual({
+				tracking: {},
+				session: { httpOnly: true },
+			});
+		});
+
+		test("expires function works with object-based constructor", () => {
+			const expiresDate = new Date("2025-12-31T00:00:00Z");
+			const fami = new Fami({
+				session: { expires: () => expiresDate },
+			});
+
+			const result = fami.serialize("session", "abc123");
+
+			expect(result).toContain("Expires=Wed, 31 Dec 2025 00:00:00 GMT");
+		});
+
+		test("description field works with object-based constructor", () => {
+			const fami = new Fami({
+				session: {
+					description: "User session cookie",
+					httpOnly: true,
+				},
+			});
+
+			expect(fami.getDefinition("session")?.description).toBe(
+				"User session cookie",
+			);
 		});
 	});
 
@@ -408,7 +565,7 @@ describe("Fami", () => {
 	});
 
 	describe("InferCookieNames type", () => {
-		test("correctly infers cookie names", () => {
+		test("correctly infers cookie names from array", () => {
 			const fami = new Fami(["session", "tracking"] as const);
 			type Names = InferCookieNames<typeof fami>;
 
@@ -419,6 +576,73 @@ describe("Fami", () => {
 			// Another valid name
 			const anotherValidName: Names = "tracking";
 			expect(anotherValidName).toBe("tracking");
+
+			const _: Expect<Names, "session" | "tracking"> = true;
+			expect(_).toBe(true);
+		});
+
+		test("correctly infers cookie names from object", () => {
+			const fami = new Fami({
+				session: { httpOnly: true },
+				tracking: {},
+			});
+			type Names = InferCookieNames<typeof fami>;
+
+			const validName: Names = "session";
+			expect(validName).toBe("session");
+
+			const anotherValidName: Names = "tracking";
+			expect(anotherValidName).toBe("tracking");
+
+			const _: Expect<Names, "session" | "tracking"> = true;
+			expect(_).toBe(true);
+		});
+
+		test("object-based and array-based infer the same names", () => {
+			const fromArray = new Fami([
+				"session",
+				{ name: "tracking", httpOnly: true },
+			] as const);
+
+			const fromObject = new Fami({
+				session: {},
+				tracking: { httpOnly: true },
+			});
+
+			type ArrayNames = InferCookieNames<typeof fromArray>;
+			type ObjectNames = InferCookieNames<typeof fromObject>;
+
+			// Both should infer "session" | "tracking"
+			const _arrayCheck: Expect<ArrayNames, "session" | "tracking"> = true;
+			const _objectCheck: Expect<ObjectNames, "session" | "tracking"> = true;
+			const _equivalent: Expect<ArrayNames, ObjectNames> = true;
+
+			expect(_arrayCheck).toBe(true);
+			expect(_objectCheck).toBe(true);
+			expect(_equivalent).toBe(true);
+		});
+
+		test("object-based constructor infers names for serialize/parse/delete", () => {
+			const fami = new Fami({
+				auth: { httpOnly: true, secure: true },
+				theme: {},
+			});
+
+			// These should all compile — the names are properly inferred
+			const serialized = fami.serialize("auth", "token");
+			expect(serialized).toContain("auth=token");
+
+			const parsed = fami.parse("auth=token; theme=dark");
+			expect(parsed.auth).toBe("token");
+			expect(parsed.theme).toBe("dark");
+
+			const deleted = fami.delete("theme");
+			expect(deleted).toContain("theme=");
+
+			// Verify the parsed type has the right keys
+			type ParsedKeys = keyof typeof parsed;
+			const _: Expect<ParsedKeys, "auth" | "theme"> = true;
+			expect(_).toBe(true);
 		});
 	});
 

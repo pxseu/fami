@@ -1,5 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { type CookieInit, Fami, type FamiCookies } from "./fami";
+import { Fami, type FamiCookies, type FamiInput } from "./fami";
 
 export type ExpressRequestStub = { headers: { cookie?: string } };
 export type ExpressResponseStub = {
@@ -177,8 +177,8 @@ function createResponse<CookieName extends string>(
  * }));
  * ```
  */
-export function createFami<CookieName extends string>(
-	cookieInit: readonly CookieInit<CookieName>[] | Fami<CookieName>,
+export function fami<CookieName extends string>(
+	cookieInit: FamiInput<CookieName> | Fami<CookieName>,
 ): FamiExpress<CookieName> {
 	const fami = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 

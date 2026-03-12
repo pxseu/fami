@@ -1,4 +1,4 @@
-import { type CookieInit, Fami, type FamiCookies } from "./fami";
+import { Fami, type FamiCookies, type FamiInput } from "./fami";
 
 type MaybePromise<T> = T | Promise<T>;
 type NoOverlap<T, U> = {
@@ -83,7 +83,7 @@ function createFamiContext<CookieName extends string, Return extends object>(
  *
  * @example
  * ```ts
- * const context = createFami(["session"]);
+ * const context = fami(["session"]);
  *
  * const kaito = create({
  *   getContext: context((req, head) => {
@@ -93,8 +93,8 @@ function createFamiContext<CookieName extends string, Return extends object>(
  * });
  * ```
  */
-export function createFami<CookieName extends string>(
-	cookieInit: readonly CookieInit<CookieName>[] | Fami<CookieName>,
+export function fami<CookieName extends string>(
+	cookieInit: FamiInput<CookieName> | Fami<CookieName>,
 ): FamiContextWrapper<CookieName> {
 	const fami = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 

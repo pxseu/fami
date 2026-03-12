@@ -1,6 +1,7 @@
 import { FamiError, InvalidAttributeError, InvalidNameError } from "./errors";
 import {
 	entries,
+	isArray,
 	isValidCookieDomain,
 	isValidCookieName,
 	isValidCookiePath,
@@ -43,9 +44,17 @@ export type CookieDefinition<_ extends string> = Partial<{
 }> &
 	Omit<CookieAttributes, "expires">;
 
-export type CookieInit<Name extends string> =
-	| Name
-	| ({ name: Name } & CookieDefinition<Name>);
+export type CookieArray<Name extends string> = ReadonlyArray<
+	Name | ({ name: Name } & CookieDefinition<Name>)
+>;
+
+export type CookieRecord<Name extends string> = {
+	readonly [K in Name]: CookieDefinition<K>;
+};
+
+export type FamiInput<CookieName extends string> =
+	| CookieArray<CookieName>
+	| CookieRecord<CookieName>;
 
 /**
  * Fami - A type-safe cookie manager for modern web applications
@@ -54,7 +63,7 @@ export type CookieInit<Name extends string> =
  * name checking and runtime validation. Define your cookies once with their
  * default attributes, then serialize and parse them with full type safety.
  *
- * @example Basic usage
+ * @example Array initialization
  * ```ts
  * const cookies = new Fami([
  *   "tracking",
@@ -79,6 +88,19 @@ export type CookieInit<Name extends string> =
  * const deleteHeader = cookies.delete("session");
  * ```
  *
+ * @example Object initialization
+ * ```ts
+ * const cookies = new Fami({
+ *   tracking: {},
+ *   session: {
+ *     httpOnly: true,
+ *     secure: true,
+ *     sameSite: "strict",
+ *     expires: () => new Date(Date.now() + 86400000), // 1 day
+ *   },
+ * });
+ * ```
+ *
  * @example Type inference
  * ```ts
  * const cookies = new Fami(["session", "theme"]);
@@ -91,7 +113,19 @@ export class Fami<CookieName extends string> {
 	/**
 	 * @param cookieDefinitions A list of cookie definitions to initialize with
 	 */
-	constructor(cookieDefinitions: readonly CookieInit<CookieName>[]) {
+	constructor(cookieDefinitions: CookieArray<CookieName>);
+	/**
+	 * @param cookieDefinitions An object mapping cookie names to definitions
+	 */
+	constructor(cookieDefinitions: CookieRecord<CookieName>);
+	constructor(cookieDefinitions: FamiInput<CookieName>);
+	constructor(input: FamiInput<CookieName>) {
+		const cookieDefinitions = isArray(input)
+			? input
+			: entries(input).map(([name, definition]) =>
+					Object.assign({ name }, definition),
+				);
+
 		// freeze the cookies object to prevent mutation via the public API
 		this.#cookies = Object.freeze(
 			cookieDefinitions.reduce((cookies, input) => {
