@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "bun:test";
 import {
-	createFami,
+	fami as createFami,
 	type FamiExpress,
 	type FamiRequest,
 	type FamiResponse,
