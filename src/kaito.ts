@@ -1,17 +1,11 @@
 import { Fami, type FamiCookies, type FamiInput } from "./fami";
 
-type MaybePromise<T> = T | Promise<T>;
 type NoOverlap<T, U> = {
 	[K in keyof T & keyof U]: never;
 };
 
 export type KaitoRequestStub = { headers: Headers };
 export type KaitoHeadStub = { headers: Headers };
-
-export type GetContext<Request, Head, Return extends object> = (
-	req: Request,
-	head: Head,
-) => MaybePromise<Return>;
 
 export type FamiContext<CookieName extends string> = {
 	/**
@@ -41,38 +35,11 @@ export type FamiContextWrapper<CookieName extends string> = <
 	Head extends KaitoHeadStub,
 	Return extends object & NoOverlap<Return, FamiContext<CookieName>>,
 >(
-	getContext: GetContext<Request, Head, Return>,
-) => (
+	prev: Return,
+	_params: unknown,
 	req: Request,
 	head: Head,
-) => MaybePromise<Return & FamiContext<CookieName>>;
-
-function createFamiContext<CookieName extends string, Return extends object>(
-	fami: Fami<CookieName>,
-	req: KaitoRequestStub,
-	head: KaitoHeadStub,
-	context: Return,
-): Return & FamiContext<CookieName> {
-	let lazyCookies: FamiCookies<CookieName> | undefined;
-
-	return {
-		...context,
-		get fami() {
-			return fami;
-		},
-		get cookies() {
-			if (lazyCookies) return lazyCookies;
-			lazyCookies = Object.freeze(fami.parse(req.headers.get("Cookie")));
-			return lazyCookies;
-		},
-		setCookie(...args: Parameters<typeof fami.serialize>) {
-			head.headers.append("Set-Cookie", fami.serialize(...args));
-		},
-		deleteCookie(...args: Parameters<typeof fami.delete>) {
-			head.headers.append("Set-Cookie", fami.delete(...args));
-		},
-	};
-}
+) => Return & FamiContext<CookieName>;
 
 /**
  * Creates a Kaito context wrapper that includes the Fami instance and cookie management methods.
@@ -93,31 +60,30 @@ function createFamiContext<CookieName extends string, Return extends object>(
  * });
  * ```
  */
-export function fami<CookieName extends string>(
-	cookieInit: FamiInput<CookieName> | Fami<CookieName>,
-): FamiContextWrapper<CookieName> {
+export function fami<Names extends string>(
+	cookieInit: FamiInput<Names> | Fami<Names>,
+): FamiContextWrapper<Names> {
 	const fami = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 
-	return <
-		Request extends KaitoRequestStub,
-		Head extends KaitoHeadStub,
-		Return extends object,
-	>(
-		getContext: GetContext<Request, Head, Return>,
-	): ((
-		req: Request,
-		head: Head,
-	) => MaybePromise<Return & FamiContext<CookieName>>) => {
-		return (req: Request, head: Head) => {
-			const userContext = getContext(req, head);
+	return (context, _params, req, head) => {
+		let lazyCookies: FamiCookies<Names> | undefined;
 
-			if (userContext instanceof Promise) {
-				return userContext.then((context) =>
-					createFamiContext(fami, req, head, context),
-				);
-			}
-
-			return createFamiContext(fami, req, head, userContext);
+		return {
+			...context,
+			get fami() {
+				return fami;
+			},
+			get cookies() {
+				if (lazyCookies) return lazyCookies;
+				lazyCookies = Object.freeze(fami.parse(req.headers.get("Cookie")));
+				return lazyCookies;
+			},
+			setCookie(...args: Parameters<typeof fami.serialize>) {
+				head.headers.append("Set-Cookie", fami.serialize(...args));
+			},
+			deleteCookie(...args: Parameters<typeof fami.delete>) {
+				head.headers.append("Set-Cookie", fami.delete(...args));
+			},
 		};
 	};
 }
