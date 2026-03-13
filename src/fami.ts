@@ -1,7 +1,6 @@
 import { FamiError, InvalidAttributeError, InvalidNameError } from "./errors";
 import {
 	entries,
-	isArray,
 	isValidCookieDomain,
 	isValidCookieName,
 	isValidCookiePath,
@@ -21,8 +20,9 @@ export type FamiCookies<CookieName extends string> = Partial<
 // Phantom type to ensure the name is "used" by TypeScript
 export type CookieDefinition<_ extends string> = Partial<{
 	/**
-	 * A description of the cookie
-	 * This has no functional purpose, but is useful for documentation and debugging
+	 * A description of the cookie.
+	 *
+	 * This has no functional purpose, but is useful for documentation and debugging.
 	 */
 	description: string;
 
@@ -44,17 +44,9 @@ export type CookieDefinition<_ extends string> = Partial<{
 }> &
 	Omit<CookieAttributes, "expires">;
 
-export type CookieArray<Name extends string> = ReadonlyArray<
-	Name | ({ name: Name } & CookieDefinition<Name>)
->;
-
-export type CookieRecord<Name extends string> = {
+export type FamiInput<Name extends string> = {
 	readonly [K in Name]: CookieDefinition<K>;
 };
-
-export type FamiInput<CookieName extends string> =
-	| CookieArray<CookieName>
-	| CookieRecord<CookieName>;
 
 /**
  * Fami - A type-safe cookie manager for modern web applications
@@ -111,27 +103,13 @@ export class Fami<CookieName extends string> {
 	readonly #cookies: Record<CookieName, CookieDefinition<CookieName>>;
 
 	/**
-	 * @param cookieDefinitions A list of cookie definitions to initialize with
-	 */
-	constructor(cookieDefinitions: CookieArray<CookieName>);
-	/**
 	 * @param cookieDefinitions An object mapping cookie names to definitions
 	 */
-	constructor(cookieDefinitions: CookieRecord<CookieName>);
 	constructor(cookieDefinitions: FamiInput<CookieName>);
 	constructor(input: FamiInput<CookieName>) {
-		const cookieDefinitions = isArray(input)
-			? input
-			: entries(input).map(([name, definition]) =>
-					Object.assign({ name }, definition),
-				);
-
 		// freeze the cookies object to prevent mutation via the public API
 		this.#cookies = Object.freeze(
-			cookieDefinitions.reduce((cookies, input) => {
-				const { name, ...definition } =
-					typeof input === "string" ? { name: input } : input;
-
+			entries(input).reduce((cookies, [name, definition]) => {
 				if (cookies[name]) {
 					throw new FamiError(`Cookie name ${name} is already registered`);
 				}

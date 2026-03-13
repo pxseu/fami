@@ -60,7 +60,7 @@ function applyMiddleware<CookieName extends string>(
 describe("express - createFami", () => {
 	describe("middleware augmentation", () => {
 		test("adds fami instance to req", () => {
-			const fami = createFami(["session", "tracking"]);
+			const fami = createFami({ session: {}, tracking: {} });
 			const mock = mockRes();
 			const { req } = applyMiddleware(fami, mockReq(), mock);
 
@@ -69,7 +69,7 @@ describe("express - createFami", () => {
 		});
 
 		test("adds cookies getter to req", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { req } = applyMiddleware(fami, mockReq("session=abc123"), mock);
 
@@ -77,7 +77,7 @@ describe("express - createFami", () => {
 		});
 
 		test("adds setCookie to res", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -86,7 +86,7 @@ describe("express - createFami", () => {
 		});
 
 		test("adds deleteCookie to res", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -95,7 +95,7 @@ describe("express - createFami", () => {
 		});
 
 		test("adds cookieJar to res", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -105,7 +105,7 @@ describe("express - createFami", () => {
 		});
 
 		test("calls next()", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const next = vi.fn();
 
@@ -115,7 +115,7 @@ describe("express - createFami", () => {
 		});
 
 		test("works with Fami instance", () => {
-			const famiInstance = new Fami(["session", "tracking"]);
+			const famiInstance = new Fami({ session: {}, tracking: {} });
 			const fami = createFami(famiInstance);
 			const mock = mockRes();
 			const { req } = applyMiddleware(fami, mockReq(), mock);
@@ -124,7 +124,7 @@ describe("express - createFami", () => {
 		});
 
 		test("fami getter always returns same instance", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { req } = applyMiddleware(fami, mockReq(), mock);
 
@@ -134,7 +134,7 @@ describe("express - createFami", () => {
 
 	describe("lazy cookies getter", () => {
 		test("does not parse cookies until accessed", () => {
-			const famiInstance = new Fami(["session"]);
+			const famiInstance = new Fami({ session: {} });
 			const parseSpy = vi.spyOn(famiInstance, "parse");
 			const fami = createFami(famiInstance);
 
@@ -152,7 +152,7 @@ describe("express - createFami", () => {
 		});
 
 		test("caches parsed cookies (returns same reference)", () => {
-			const famiInstance = new Fami(["session"]);
+			const famiInstance = new Fami({ session: {} });
 			const parseSpy = vi.spyOn(famiInstance, "parse");
 			const fami = createFami(famiInstance);
 
@@ -175,7 +175,7 @@ describe("express - createFami", () => {
 		});
 
 		test("returns frozen object", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { req } = applyMiddleware(fami, mockReq("session=abc123"), mock);
 
@@ -183,7 +183,7 @@ describe("express - createFami", () => {
 		});
 
 		test("handles undefined cookie header", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { req } = applyMiddleware(fami, mockReq(undefined), mock);
 
@@ -191,7 +191,7 @@ describe("express - createFami", () => {
 		});
 
 		test("parses multiple cookies", () => {
-			const fami = createFami(["session", "tracking", "testing"]);
+			const fami = createFami({ session: {}, tracking: {}, testing: {} });
 			const mock = mockRes();
 			const { req } = applyMiddleware(
 				fami,
@@ -209,7 +209,7 @@ describe("express - createFami", () => {
 
 	describe("cookie jar - setCookie", () => {
 		test("adds cookie to jar", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -220,7 +220,7 @@ describe("express - createFami", () => {
 		});
 
 		test("serializes with attributes", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -236,7 +236,7 @@ describe("express - createFami", () => {
 		});
 
 		test("deduplicates by cookie name (last write wins)", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -249,7 +249,7 @@ describe("express - createFami", () => {
 		});
 
 		test("stores multiple different cookies", () => {
-			const fami = createFami(["session", "tracking"]);
+			const fami = createFami({ session: {}, tracking: {} });
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -264,14 +264,13 @@ describe("express - createFami", () => {
 		});
 
 		test("uses default attributes from cookie definition", () => {
-			const fami = createFami([
-				{
-					name: "session",
+			const fami = createFami({
+				session: {
 					path: "/",
 					httpOnly: true,
 					secure: true,
 				},
-			]);
+			});
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -286,7 +285,7 @@ describe("express - createFami", () => {
 
 	describe("cookie jar - deleteCookie", () => {
 		test("adds deletion to jar", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -299,13 +298,12 @@ describe("express - createFami", () => {
 		});
 
 		test("includes default attributes from definition", () => {
-			const fami = createFami([
-				{
-					name: "session",
+			const fami = createFami({
+				session: {
 					path: "/",
 					domain: "example.com",
 				},
-			]);
+			});
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -317,7 +315,7 @@ describe("express - createFami", () => {
 		});
 
 		test("overwrites previous setCookie for same name", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -331,7 +329,7 @@ describe("express - createFami", () => {
 		});
 
 		test("setCookie after deleteCookie overwrites deletion", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -347,7 +345,7 @@ describe("express - createFami", () => {
 
 	describe("writeHead flush", () => {
 		test("flushes jar to Set-Cookie headers on writeHead", () => {
-			const fami = createFami(["session", "tracking"]);
+			const fami = createFami({ session: {}, tracking: {} });
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -364,7 +362,7 @@ describe("express - createFami", () => {
 		});
 
 		test("does not append headers before writeHead", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -375,7 +373,7 @@ describe("express - createFami", () => {
 		});
 
 		test("flushes empty jar without error", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const req = mockReq();
 			const mock = mockRes();
 
@@ -389,7 +387,7 @@ describe("express - createFami", () => {
 		});
 
 		test("passes through writeHead arguments", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const req = mockReq();
 
 			const writeHeadSpy = vi.fn();
@@ -409,7 +407,7 @@ describe("express - createFami", () => {
 		});
 
 		test("only flushes last value per cookie on writeHead", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
@@ -427,7 +425,7 @@ describe("express - createFami", () => {
 
 	describe("handler wrapper", () => {
 		test("is an identity function at runtime", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 
 			const originalHandler = () => {};
 			const wrappedHandler = fami.handler(originalHandler);
@@ -436,7 +434,7 @@ describe("express - createFami", () => {
 		});
 
 		test("passes through to the original handler", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const handlerFn = vi.fn();
 			const wrappedHandler = fami.handler(handlerFn);
 
@@ -455,7 +453,7 @@ describe("express - createFami", () => {
 
 	describe("integration scenarios", () => {
 		test("full request lifecycle: read cookies, set new, delete old, flush", () => {
-			const fami = createFami(["session", "tracking", "preferences"]);
+			const fami = createFami({ session: {}, tracking: {}, preferences: {} });
 			const mock = mockRes();
 			const { req, res } = applyMiddleware(
 				fami,
@@ -484,7 +482,7 @@ describe("express - createFami", () => {
 		});
 
 		test("works with empty cookie definitions", () => {
-			const fami = createFami([]);
+			const fami = createFami({});
 			const mock = mockRes();
 			const { req } = applyMiddleware(fami, mockReq(), mock);
 
@@ -493,7 +491,7 @@ describe("express - createFami", () => {
 		});
 
 		test("middleware creates fresh jar per request", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 
 			// First request
 			const mock1 = mockRes();
@@ -512,7 +510,7 @@ describe("express - createFami", () => {
 		});
 
 		test("middleware shares fami instance across requests", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 
 			const mock1 = mockRes();
 			const { req: req1 } = applyMiddleware(fami, mockReq(), mock1);
@@ -524,7 +522,7 @@ describe("express - createFami", () => {
 		});
 
 		test("handler + middleware work together", () => {
-			const fami = createFami(["session"]);
+			const fami = createFami({ session: {} });
 			const req = mockReq("session=abc123");
 			const mock = mockRes();
 

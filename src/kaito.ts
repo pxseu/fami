@@ -28,18 +28,26 @@ export type FamiContext<CookieName extends string> = {
 
 /**
  * A Kaito context wrapper that includes the Fami instance and cookie management methods
- * You should not call this function directly, simply wrap your current context function with it.
+ * You should not call this function directly, simply put it in your kaito pipeline, via `kaito.pipe(fami(...))`
  */
-export type FamiContextWrapper<CookieName extends string> = <
-	Request extends KaitoRequestStub,
-	Head extends KaitoHeadStub,
-	Return extends object & NoOverlap<Return, FamiContext<CookieName>>,
->(
-	prev: Return,
-	_params: unknown,
-	req: Request,
-	head: Head,
-) => Return & FamiContext<CookieName>;
+export type FamiContextWrapper<CookieName extends string> = {
+	<Request extends KaitoRequestStub, Head extends KaitoHeadStub>(
+		prev: null | undefined,
+		_params: unknown,
+		req: Request,
+		head: Head,
+	): FamiContext<CookieName>;
+	<
+		Request extends KaitoRequestStub,
+		Head extends KaitoHeadStub,
+		Prev extends object,
+	>(
+		prev: Prev & NoOverlap<Prev, FamiContext<CookieName>>,
+		_params: unknown,
+		req: Request,
+		head: Head,
+	): Prev & FamiContext<CookieName>;
+};
 
 /**
  * Creates a Kaito context wrapper that includes the Fami instance and cookie management methods.
@@ -68,11 +76,16 @@ export function fami<Names extends string>(
 ): FamiContextWrapper<Names> {
 	const fami = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 
-	return (context, _params, req, head) => {
+	return (
+		context: object | null | undefined,
+		_params: unknown,
+		req: KaitoRequestStub,
+		head: KaitoHeadStub,
+	) => {
 		let lazyCookies: FamiCookies<Names> | undefined;
 
 		return {
-			...context,
+			...(context ?? {}),
 			get fami() {
 				return fami;
 			},

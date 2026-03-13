@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-	Fami,
-	FamiError,
-	type InferCookieNames,
-	InvalidNameError,
-} from "../src";
+import { Fami, type InferCookieNames, InvalidNameError } from "../src";
 
 /**
  * Helper that produces a compile error when `T` is not exactly `Expected`.
@@ -18,21 +13,20 @@ type Expect<T, Expected> = [T] extends [Expected]
 
 describe("Fami", () => {
 	describe("constructor", () => {
-		test("initializes with string cookie names", () => {
-			const fami = new Fami(["session", "tracking"]);
+		test("initializes with empty definitions", () => {
+			const fami = new Fami({ session: {}, tracking: {} });
 
 			expect(fami.getNames()).toEqual(["session", "tracking"]);
 		});
 
 		test("initializes with cookie definitions", () => {
-			const fami = new Fami([
-				{
-					name: "session",
+			const fami = new Fami({
+				session: {
 					httpOnly: true,
 					secure: true,
 					sameSite: "strict",
 				},
-			]);
+			});
 
 			expect(fami.getNames()).toEqual(["session"]);
 			expect(fami.getDefinition("session")).toEqual({
@@ -59,33 +53,25 @@ describe("Fami", () => {
 		});
 
 		test("initializes with mixed cookie definitions", () => {
-			const fami = new Fami([
-				"tracking",
-				{
-					name: "session",
+			const fami = new Fami({
+				tracking: {},
+				session: {
 					httpOnly: true,
 					secure: true,
 				},
-			]);
+			});
 
 			expect(fami.getNames()).toEqual(["tracking", "session"]);
 		});
 
-		test("throws error for duplicate cookie names", () => {
-			expect(() => new Fami(["session", "session"])).toThrow(FamiError);
-			expect(() => new Fami(["session", "session"])).toThrow(
-				"Cookie name session is already registered",
-			);
-		});
-
 		test("throws error for invalid cookie names", () => {
-			expect(() => new Fami(["invalid name"])).toThrow(InvalidNameError);
+			expect(() => new Fami({ "invalid name": {} })).toThrow(InvalidNameError);
 		});
 
 		test("throws error for invalid cookie name in definitions", () => {
-			expect(
-				() => new Fami([{ name: "invalid name", httpOnly: true }]),
-			).toThrow(InvalidNameError);
+			expect(() => new Fami({ "invalid name": { httpOnly: true } })).toThrow(
+				InvalidNameError,
+			);
 		});
 
 		test("object-based constructor throws error for invalid cookie names", () => {
@@ -222,14 +208,13 @@ describe("Fami", () => {
 
 	describe("serialize", () => {
 		test("serializes cookie with default attributes", () => {
-			const fami = new Fami([
-				{
-					name: "session",
+			const fami = new Fami({
+				session: {
 					httpOnly: true,
 					secure: true,
 					sameSite: "strict",
 				},
-			]);
+			});
 
 			const result = fami.serialize("session", "abc123");
 
@@ -240,12 +225,11 @@ describe("Fami", () => {
 		});
 
 		test("overrides default attributes with provided attributes", () => {
-			const fami = new Fami([
-				{
-					name: "session",
+			const fami = new Fami({
+				session: {
 					sameSite: "strict",
 				},
-			]);
+			});
 
 			const result = fami.serialize("session", "abc123", {
 				sameSite: "lax",
@@ -258,12 +242,11 @@ describe("Fami", () => {
 
 		test("uses expires function from definition", () => {
 			const expiresDate = new Date("2025-12-31T00:00:00Z");
-			const fami = new Fami([
-				{
-					name: "session",
+			const fami = new Fami({
+				session: {
 					expires: () => expiresDate,
 				},
-			]);
+			});
 
 			const result = fami.serialize("session", "abc123");
 
@@ -274,13 +257,12 @@ describe("Fami", () => {
 		test("overrides expires function with provided expires", () => {
 			const overrideDate = new Date("2026-01-01T00:00:00Z");
 
-			const fami = new Fami([
-				{
-					name: "session",
+			const fami = new Fami({
+				session: {
 					expires: () =>
 						expect.unreachable("expires function should not be called"),
 				},
-			]);
+			});
 
 			const result = fami.serialize("session", "abc123", {
 				expires: overrideDate,
@@ -290,7 +272,7 @@ describe("Fami", () => {
 		});
 
 		test("serializes cookie without default attributes", () => {
-			const fami = new Fami(["tracking"]);
+			const fami = new Fami({ tracking: {} });
 
 			const result = fami.serialize("tracking", "value123");
 
@@ -298,7 +280,7 @@ describe("Fami", () => {
 		});
 
 		test("serializes with custom attributes", () => {
-			const fami = new Fami(["tracking"]);
+			const fami = new Fami({ tracking: {} });
 
 			const result = fami.serialize("tracking", "value", {
 				path: "/",
@@ -313,7 +295,7 @@ describe("Fami", () => {
 
 	describe("serializeAll", () => {
 		test("serializes all cookies in the record", () => {
-			const fami = new Fami(["session", "tracking"]);
+			const fami = new Fami({ session: {}, tracking: {} });
 
 			const result = fami.serializeAll({
 				session: "abc123",
@@ -326,7 +308,7 @@ describe("Fami", () => {
 		});
 
 		test("serializes all cookies in the record with mixed values and attributes", () => {
-			const fami = new Fami(["session", "tracking"]);
+			const fami = new Fami({ session: {}, tracking: {} });
 
 			const [session, tracking] = fami.serializeAll({
 				session: "abc123",
@@ -340,14 +322,13 @@ describe("Fami", () => {
 		});
 
 		test("serializes all cookies in the record with attributes", () => {
-			const fami = new Fami([
-				"session",
-				{
-					name: "tracking",
+			const fami = new Fami({
+				session: {},
+				tracking: {
 					path: "/",
 					maxAge: 3600,
 				},
-			]);
+			});
 
 			const [session, tracking] = fami.serializeAll({
 				session: "abc123",
@@ -361,13 +342,12 @@ describe("Fami", () => {
 		});
 
 		test("correctly overrides attributes", () => {
-			const fami = new Fami([
-				{
-					name: "tracking",
+			const fami = new Fami({
+				tracking: {
 					path: "/admin",
 					maxAge: 3600,
 				},
-			]);
+			});
 
 			const [tracking] = fami.serializeAll({
 				tracking: { value: "value", path: "/docs", maxAge: 0 },
@@ -381,7 +361,7 @@ describe("Fami", () => {
 		});
 
 		test("serializes all cookies in the record with undefined values", () => {
-			const fami = new Fami(["session", "tracking"]);
+			const fami = new Fami({ session: {}, tracking: {} });
 
 			const result = fami.serializeAll({
 				session: "abc123",
@@ -392,7 +372,7 @@ describe("Fami", () => {
 		});
 
 		test("returns empty array for no cookies", () => {
-			const fami = new Fami(["session", "tracking"]);
+			const fami = new Fami({ session: {}, tracking: {} });
 
 			const result = fami.serializeAll({});
 
@@ -400,7 +380,7 @@ describe("Fami", () => {
 		});
 
 		test("can serialize with an empty string", () => {
-			const fami = new Fami(["session"]);
+			const fami = new Fami({ session: {} });
 
 			const result = fami.serializeAll({
 				session: "",
@@ -412,7 +392,7 @@ describe("Fami", () => {
 
 	describe("parse", () => {
 		test("parses cookie header and returns registered cookies", () => {
-			const fami = new Fami(["session", "tracking"]);
+			const fami = new Fami({ session: {}, tracking: {} });
 
 			const result = fami.parse("session=abc123; tracking=xyz789");
 
@@ -423,7 +403,7 @@ describe("Fami", () => {
 		});
 
 		test("returns undefined for missing cookies", () => {
-			const fami = new Fami(["session", "tracking"]);
+			const fami = new Fami({ session: {}, tracking: {} });
 
 			const result = fami.parse("session=abc123");
 
@@ -434,7 +414,7 @@ describe("Fami", () => {
 		});
 
 		test("ignores unregistered cookies", () => {
-			const fami = new Fami(["session"]);
+			const fami = new Fami({ session: {} });
 
 			const result = fami.parse("session=abc123; unregistered=value");
 
@@ -445,7 +425,7 @@ describe("Fami", () => {
 		});
 
 		test("handles empty cookie header", () => {
-			const fami = new Fami(["session", "tracking"]);
+			const fami = new Fami({ session: {}, tracking: {} });
 
 			const result = fami.parse("");
 
@@ -458,7 +438,7 @@ describe("Fami", () => {
 
 	describe("delete", () => {
 		test("creates a deletion header", () => {
-			const fami = new Fami(["session"]);
+			const fami = new Fami({ session: {} });
 
 			const result = fami.delete("session");
 
@@ -468,13 +448,12 @@ describe("Fami", () => {
 		});
 
 		test("includes default attributes in deletion header", () => {
-			const fami = new Fami([
-				{
-					name: "session",
+			const fami = new Fami({
+				session: {
 					path: "/",
 					domain: "example.com",
 				},
-			]);
+			});
 
 			const result = fami.delete("session");
 
@@ -485,13 +464,12 @@ describe("Fami", () => {
 
 	describe("getDefinition", () => {
 		test("returns cookie definition", () => {
-			const fami = new Fami([
-				{
-					name: "session",
+			const fami = new Fami({
+				session: {
 					httpOnly: true,
 					secure: true,
 				},
-			]);
+			});
 
 			const definition = fami.getDefinition("session");
 
@@ -502,7 +480,7 @@ describe("Fami", () => {
 		});
 
 		test("returns undefined for unregistered cookie", () => {
-			const fami = new Fami(["session"]);
+			const fami = new Fami({ session: {} });
 
 			// @ts-expect-error - testing runtime behavior
 			const definition = fami.getDefinition("unregistered");
@@ -513,13 +491,13 @@ describe("Fami", () => {
 
 	describe("has", () => {
 		test("returns true for registered cookie", () => {
-			const fami = new Fami(["session"]);
+			const fami = new Fami({ session: {} });
 
 			expect(fami.has("session")).toBe(true);
 		});
 
 		test("returns false for unregistered cookie", () => {
-			const fami = new Fami(["session"]);
+			const fami = new Fami({ session: {} });
 
 			expect(fami.has("unregistered")).toBe(false);
 		});
@@ -527,7 +505,7 @@ describe("Fami", () => {
 
 	describe("getNames", () => {
 		test("returns all registered cookie names", () => {
-			const fami = new Fami(["session", "tracking", "preferences"]);
+			const fami = new Fami({ session: {}, tracking: {}, preferences: {} });
 
 			const names = fami.getNames();
 
@@ -535,7 +513,7 @@ describe("Fami", () => {
 		});
 
 		test("returns empty array for no cookies", () => {
-			const fami = new Fami([]);
+			const fami = new Fami({});
 
 			const names = fami.getNames();
 
@@ -545,13 +523,12 @@ describe("Fami", () => {
 
 	describe("cookies getter", () => {
 		test("returns all cookie definitions", () => {
-			const fami = new Fami([
-				"tracking",
-				{
-					name: "session",
+			const fami = new Fami({
+				tracking: {},
+				session: {
 					httpOnly: true,
 				},
-			]);
+			});
 
 			const cookies = fami.cookies;
 
@@ -565,8 +542,11 @@ describe("Fami", () => {
 	});
 
 	describe("InferCookieNames type", () => {
-		test("correctly infers cookie names from array", () => {
-			const fami = new Fami(["session", "tracking"] as const);
+		test("correctly infers cookie names from object", () => {
+			const fami = new Fami({
+				session: {},
+				tracking: {},
+			} as const);
 			type Names = InferCookieNames<typeof fami>;
 
 			// Type check - this should compile
@@ -581,7 +561,7 @@ describe("Fami", () => {
 			expect(_).toBe(true);
 		});
 
-		test("correctly infers cookie names from object", () => {
+		test("correctly infers cookie names from object with attributes", () => {
 			const fami = new Fami({
 				session: { httpOnly: true },
 				tracking: {},
@@ -598,27 +578,31 @@ describe("Fami", () => {
 			expect(_).toBe(true);
 		});
 
-		test("object-based and array-based infer the same names", () => {
-			const fromArray = new Fami([
-				"session",
-				{ name: "tracking", httpOnly: true },
-			] as const);
-
+		test("object-based inputs infer stable names", () => {
 			const fromObject = new Fami({
 				session: {},
 				tracking: { httpOnly: true },
-			});
+			} as const);
 
-			type ArrayNames = InferCookieNames<typeof fromArray>;
+			const fromObjectWithDefaults = new Fami({
+				session: {},
+				tracking: { httpOnly: true },
+			} as const);
+
 			type ObjectNames = InferCookieNames<typeof fromObject>;
+			type ObjectNamesWithDefaults = InferCookieNames<
+				typeof fromObjectWithDefaults
+			>;
 
-			// Both should infer "session" | "tracking"
-			const _arrayCheck: Expect<ArrayNames, "session" | "tracking"> = true;
 			const _objectCheck: Expect<ObjectNames, "session" | "tracking"> = true;
-			const _equivalent: Expect<ArrayNames, ObjectNames> = true;
+			const _defaultsCheck: Expect<
+				ObjectNamesWithDefaults,
+				"session" | "tracking"
+			> = true;
+			const _equivalent: Expect<ObjectNames, ObjectNamesWithDefaults> = true;
 
-			expect(_arrayCheck).toBe(true);
 			expect(_objectCheck).toBe(true);
+			expect(_defaultsCheck).toBe(true);
 			expect(_equivalent).toBe(true);
 		});
 
@@ -648,13 +632,12 @@ describe("Fami", () => {
 
 	describe("description field", () => {
 		test("allows description field in cookie definition", () => {
-			const fami = new Fami([
-				{
-					name: "session",
+			const fami = new Fami({
+				session: {
 					description: "User session cookie",
 					httpOnly: true,
 				},
-			]);
+			});
 
 			const definition = fami.getDefinition("session");
 
@@ -664,7 +647,7 @@ describe("Fami", () => {
 
 	describe("prototype pollution protection", () => {
 		test("allows __proto__ as cookie name in constructor", () => {
-			const fami = new Fami(["__proto__", "session"]);
+			const fami = new Fami({ ["__proto__"]: {}, session: {} });
 
 			expect(fami.getNames()).toContain("__proto__");
 			expect(fami.getNames()).toContain("session");
@@ -672,7 +655,7 @@ describe("Fami", () => {
 		});
 
 		test("allows constructor as cookie name in constructor", () => {
-			const fami = new Fami(["constructor", "session"]);
+			const fami = new Fami({ constructor: {}, session: {} });
 
 			expect(fami.getNames()).toContain("constructor");
 			expect(fami.getNames()).toContain("session");
@@ -680,7 +663,7 @@ describe("Fami", () => {
 		});
 
 		test("parses __proto__ cookie correctly", () => {
-			const fami = new Fami(["__proto__", "session"]);
+			const fami = new Fami({ ["__proto__"]: {}, session: {} });
 			const result = fami.parse("__proto__=polluted; session=abc123");
 
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
@@ -689,7 +672,7 @@ describe("Fami", () => {
 		});
 
 		test("parses constructor cookie correctly", () => {
-			const fami = new Fami(["constructor", "session"]);
+			const fami = new Fami({ constructor: {}, session: {} });
 			const result = fami.parse("constructor=evil; session=abc123");
 
 			expect(Object.hasOwn(result, "constructor")).toBe(true);
@@ -698,21 +681,21 @@ describe("Fami", () => {
 		});
 
 		test("serializes __proto__ cookie correctly", () => {
-			const fami = new Fami(["__proto__"]);
+			const fami = new Fami({ ["__proto__"]: {} });
 			const result = fami.serialize("__proto__", "value");
 
 			expect(result).toBe("__proto__=value");
 		});
 
 		test("serializes constructor cookie correctly", () => {
-			const fami = new Fami(["constructor"]);
+			const fami = new Fami({ constructor: {} });
 			const result = fami.serialize("constructor", "value");
 
 			expect(result).toBe("constructor=value");
 		});
 
 		test("does not pollute Object.prototype", () => {
-			const fami = new Fami(["__proto__", "constructor"]);
+			const fami = new Fami({ ["__proto__"]: {}, constructor: {} });
 			fami.parse("__proto__=polluted; constructor=evil");
 
 			expect(({} as Record<string, unknown>).polluted).toBeUndefined();
@@ -722,23 +705,21 @@ describe("Fami", () => {
 
 	describe("real-world usage", () => {
 		test("manages authentication cookies", () => {
-			const cookies = new Fami([
-				{
-					name: "access_token",
+			const cookies = new Fami({
+				access_token: {
 					httpOnly: true,
 					secure: true,
 					sameSite: "strict",
 					expires: () => new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
 				},
-				{
-					name: "refresh_token",
+				refresh_token: {
 					httpOnly: true,
 					secure: true,
 					sameSite: "strict",
 					path: "/",
 					expires: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
 				},
-			]);
+			});
 
 			// Serialize tokens
 			const accessHeader = cookies.serialize("access_token", "jwt_token_here");

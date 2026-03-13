@@ -29,7 +29,7 @@ function applyContext<CookieName extends string>(
 describe("kaito - createFami", () => {
 	describe("context wrapper creation", () => {
 		test("creates wrapper that exposes fami instance", () => {
-			const wrapper = createFami(["session", "tracking"]);
+			const wrapper = createFami({ session: {}, tracking: {} });
 			const req = mockReq();
 			const head = mockHead();
 			const context = wrapper({}, {}, req, head);
@@ -39,7 +39,7 @@ describe("kaito - createFami", () => {
 		});
 
 		test("merges user context with fami context", () => {
-			const wrapper = createFami(["session"]);
+			const wrapper = createFami({ session: {} });
 			const req = mockReq();
 			const head = mockHead();
 			const context = wrapper(
@@ -64,7 +64,7 @@ describe("kaito - createFami", () => {
 		});
 
 		test("works with empty user context", () => {
-			const wrapper = createFami(["session"]);
+			const wrapper = createFami({ session: {} });
 			const { context } = applyContext(wrapper);
 
 			expect(context.fami).toBeDefined();
@@ -74,14 +74,14 @@ describe("kaito - createFami", () => {
 		});
 
 		test("fami getter always returns same instance", () => {
-			const wrapper = createFami(["session"]);
+			const wrapper = createFami({ session: {} });
 			const { context } = applyContext(wrapper);
 
 			expect(context.fami).toBe(context.fami);
 		});
 
 		test("wrapper works with kaito that calls getContext", () => {
-			const wrapper = createFami(["session"]);
+			const wrapper = createFami({ session: {} });
 
 			function mockKaito<Context>(config: {
 				getContext: (
@@ -105,7 +105,7 @@ describe("kaito - createFami", () => {
 		});
 
 		test("wrapper works with fami instance", () => {
-			const fami = new Fami(["session", "tracking"]);
+			const fami = new Fami({ session: {}, tracking: {} });
 			const wrapper = createFami(fami);
 			const { context } = applyContext(wrapper);
 
@@ -119,7 +119,7 @@ describe("kaito - createFami", () => {
 
 	describe("lazy cookies getter", () => {
 		test("does not parse cookies until accessed", () => {
-			const wrapper = createFami(["session", "tracking"]);
+			const wrapper = createFami({ session: {}, tracking: {} });
 
 			const headers = new Headers({
 				Cookie: "session=abc123; tracking=xyz789",
@@ -145,7 +145,7 @@ describe("kaito - createFami", () => {
 		});
 
 		test("caches parsed cookies (returns same reference)", () => {
-			const wrapper = createFami(["session"]);
+			const wrapper = createFami({ session: {} });
 
 			const headers = new Headers({
 				Cookie: "session=abc123",
@@ -176,14 +176,14 @@ describe("kaito - createFami", () => {
 		});
 
 		test("returns frozen object", () => {
-			const wrapper = createFami(["session"]);
+			const wrapper = createFami({ session: {} });
 			const { context } = applyContext(wrapper, mockReq("session=abc123"));
 
 			expect(Object.isFrozen(context.cookies)).toBe(true);
 		});
 
 		test("returns all parsed cookies in multiple headers", () => {
-			const wrapper = createFami(["session", "tracking", "testing"]);
+			const wrapper = createFami({ session: {}, tracking: {}, testing: {} });
 
 			const req = mockReq();
 			// these will get combined once the internal .get("Cookie") is called
@@ -202,7 +202,7 @@ describe("kaito - createFami", () => {
 
 	describe("setCookie method", () => {
 		test("appends Set-Cookie header to response", () => {
-			const wrapper = createFami(["session"]);
+			const wrapper = createFami({ session: {} });
 			const { context, head } = applyContext(wrapper);
 
 			context.setCookie("session", "new_value");
@@ -211,7 +211,7 @@ describe("kaito - createFami", () => {
 		});
 
 		test("delegates to fami.serialize with arguments", () => {
-			const wrapper = createFami(["session"]);
+			const wrapper = createFami({ session: {} });
 			const { context, head } = applyContext(wrapper);
 
 			context.setCookie("session", "value", {
@@ -226,7 +226,7 @@ describe("kaito - createFami", () => {
 		});
 
 		test("appends multiple Set-Cookie headers", () => {
-			const wrapper = createFami(["session", "tracking"]);
+			const wrapper = createFami({ session: {}, tracking: {} });
 			const { context, head } = applyContext(wrapper);
 
 			context.setCookie("session", "session_value");
@@ -241,7 +241,7 @@ describe("kaito - createFami", () => {
 
 	describe("deleteCookie method", () => {
 		test("appends deletion header to response", () => {
-			const wrapper = createFami(["session"]);
+			const wrapper = createFami({ session: {} });
 			const { context, head } = applyContext(wrapper);
 
 			context.deleteCookie("session");
@@ -252,13 +252,12 @@ describe("kaito - createFami", () => {
 		});
 
 		test("delegates to fami.delete", () => {
-			const wrapper = createFami([
-				{
-					name: "session",
+			const wrapper = createFami({
+				session: {
 					path: "/",
 					domain: "example.com",
 				},
-			]);
+			});
 			const { context, head } = applyContext(wrapper);
 
 			context.deleteCookie("session");
@@ -270,7 +269,7 @@ describe("kaito - createFami", () => {
 		});
 
 		test("appends multiple deletion headers", () => {
-			const wrapper = createFami(["session", "tracking"]);
+			const wrapper = createFami({ session: {}, tracking: {} });
 			const { context, head } = applyContext(wrapper);
 
 			context.deleteCookie("session");
@@ -283,7 +282,11 @@ describe("kaito - createFami", () => {
 
 	describe("integration scenarios", () => {
 		test("read cookies, set new ones, delete old ones", () => {
-			const wrapper = createFami(["session", "tracking", "preferences"]);
+			const wrapper = createFami({
+				session: {},
+				tracking: {},
+				preferences: {},
+			});
 
 			const req = mockReq("session=old_session; tracking=track_123");
 			const head = mockHead();
@@ -305,7 +308,7 @@ describe("kaito - createFami", () => {
 		});
 
 		test("works with empty cookie definitions", () => {
-			const wrapper = createFami([]);
+			const wrapper = createFami({});
 			const { context } = applyContext(wrapper);
 
 			expect(context.fami).toBeDefined();
@@ -313,7 +316,7 @@ describe("kaito - createFami", () => {
 		});
 
 		test("ensure no overlap between user context and fami context", () => {
-			const wrapper = createFami(["session"]);
+			const wrapper = createFami({ session: {} });
 
 			const req = mockReq();
 			const head = mockHead();
