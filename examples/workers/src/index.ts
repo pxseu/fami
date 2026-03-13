@@ -1,6 +1,6 @@
 import { Fami } from "fami";
 
-const fami = new Fami(["session"]);
+const fami = new Fami({ session: { maxAge: 60 * 60 } });
 
 export default {
 	async fetch(req): Promise<Response> {

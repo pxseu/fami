@@ -81,15 +81,14 @@ The High-level API provides a simple and intuitive abstraction for managing your
 ```ts
 import { Fami } from "fami";
 
-const fami = new Fami([
-  "theme",
-  {
-    name: "session",
+const fami = new Fami({
+  theme: {},
+  session: {
     httpOnly: true,
     secure: true,
     maxAge: 3600,
   },
-]);
+});
 
 const cookies = fami.parse("theme=light; session=value");
 
@@ -148,12 +147,12 @@ fami provides first‑class [**Kaito**](https://github.com/kaito-http/kaito) sup
 
 ```ts
 import { create } from "@kaito-http/core";
-import { createFami } from "fami/kaito";
+import { fami } from "fami/kaito";
 
-const context = createFami(["session"]);
-
-const kaito = create({
-  getContext: context((req, head) => ({ req, head })),
+const kaito = create().pipe(
+  fami({
+    session: {},
+  }),
 });
 
 const app = kaito.get("/", ({ ctx }) => {
@@ -186,16 +185,16 @@ fami provides a dedicated Express adapter through `fami/express` that gives you 
 
 ```ts
 import express from "express";
-import { createFami } from "fami/express";
+import { fami } from "fami/express";
 
 const app = express();
-const fami = createFami(["session"]);
+const f = fami({ session: {} });
 
-app.use(fami.middleware());
+app.use(f.middleware());
 
 app.get(
   "/",
-  fami.handler((req, res) => {
+  f.handler((req, res) => {
     const session = req.cookies.session; // typed as string | undefined
 
     res.setCookie("session", "value"); // autocomplete for cookie names

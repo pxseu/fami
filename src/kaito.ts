@@ -66,7 +66,12 @@ export type FamiContextWrapper<CookieName extends string> = {
  *     // your usual context function
  *     // it will be merged with the Fami context
  *   },
- * }).pipe(fami(["session", "tracking"]));
+ * }).pipe(
+ *   fami({
+ *     session: { secure: true },
+ *     tracking: {},
+ *   }),
+ * );
  * ```
  *
  * @see {@link Fami} for more details on cookie definitions and management

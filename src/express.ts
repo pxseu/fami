@@ -46,7 +46,7 @@ export type FamiResponse<CookieName extends string> = {
 };
 
 /**
- * The Express adapter interface returned by `createFami`.
+ * The Express adapter interface returned by `fami`.
  * Provides a middleware for runtime augmentation and a handler wrapper for type narrowing.
  */
 export type FamiExpress<CookieName extends string> = {
@@ -163,14 +163,14 @@ function createResponse<CookieName extends string>(
  * @example
  * ```ts
  * import express from "express";
- * import { createFami } from "fami/express";
+ * import { fami } from "fami/express";
  *
  * const app = express();
- * const fami = createFami(["session"]);
+ * const f = fami({ session: {} });
  *
- * app.use(fami.middleware());
+ * app.use(f.middleware());
  *
- * app.get("/", fami.handler((req, res) => {
+ * app.get("/", f.handler((req, res) => {
  *   req.cookies.session;              // autocomplete + type-safe
  *   res.setCookie("session", "val");  // typed cookie name
  *   res.json(req.cookies);

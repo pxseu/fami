@@ -1,21 +1,21 @@
 import express from "express";
-import { createFami } from "fami/express";
+import { fami } from "fami/express";
 
 const app = express();
-const fami = createFami(["session"]);
+const f = fami({ session: { maxAge: 60 * 60 } });
 
-app.use(fami.middleware());
+app.use(f.middleware());
 
 app.get(
 	"/",
-	fami.handler((req, res) => {
+	f.handler((req, res) => {
 		res.json(req.cookies);
 	}),
 );
 
 app.get(
 	"/set-cookie",
-	fami.handler((_, res) => {
+	f.handler((_, res) => {
 		res.setCookie("session", new Date().toISOString());
 		res.send("Cookie set");
 	}),
@@ -23,7 +23,7 @@ app.get(
 
 app.get(
 	"/delete-cookie",
-	fami.handler((_, res) => {
+	f.handler((_, res) => {
 		res.deleteCookie("session");
 		res.send("Cookie deleted");
 	}),

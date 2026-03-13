@@ -1,9 +1,7 @@
 import { create } from "@kaito-http/core";
 import { fami } from "fami/kaito";
 
-const kaito = create({
-	getContext: (req, head) => ({ req, head }),
-}).pipe(
+const kaito = create().pipe(
 	fami({
 		session: { maxAge: 60 * 60 },
 	}),

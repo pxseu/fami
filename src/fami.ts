@@ -55,18 +55,17 @@ export type FamiInput<Name extends string> = {
  * name checking and runtime validation. Define your cookies once with their
  * default attributes, then serialize and parse them with full type safety.
  *
- * @example Array initialization
+ * @example
  * ```ts
- * const cookies = new Fami([
- *   "tracking",
- *   {
- *     name: "session",
+ * const cookies = new Fami({
+ *   tracking: {},
+ *   session: {
  *     httpOnly: true,
  *     secure: true,
  *     sameSite: "strict",
  *     expires: () => new Date(Date.now() + 86400000), // 1 day
  *   },
- * ]);
+ * });
  *
  * // Serialize with type checking - "session" and "tracking" are autocompleted!
  * const header = cookies.serialize("session", "abc123");
@@ -80,22 +79,12 @@ export type FamiInput<Name extends string> = {
  * const deleteHeader = cookies.delete("session");
  * ```
  *
- * @example Object initialization
+ * @example
  * ```ts
  * const cookies = new Fami({
- *   tracking: {},
- *   session: {
- *     httpOnly: true,
- *     secure: true,
- *     sameSite: "strict",
- *     expires: () => new Date(Date.now() + 86400000), // 1 day
- *   },
+ *   session: {},
+ *   theme: {},
  * });
- * ```
- *
- * @example Type inference
- * ```ts
- * const cookies = new Fami(["session", "theme"]);
  * type Names = InferCookieNames<typeof cookies>; // "session" | "theme"
  * ```
  */
@@ -284,7 +273,7 @@ export class Fami<CookieName extends string> {
  *
  * @example
  * ```ts
- * const fami = new Fami(["tracking", "session"]);
+ * const fami = new Fami({ tracking: {}, session: {} });
  * type Names = InferCookieNames<typeof fami>; // "tracking" | "session"
  * ```
  */

@@ -15,6 +15,6 @@
 	},
 	"dependencies": {
 		"express": "^5.2.1",
-		"fami": "^1.0.19"
+		"fami": "^2.0.0-beta.2"
 	}
 }
