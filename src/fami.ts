@@ -139,11 +139,6 @@ export class Fami<CookieName extends string> {
 					}
 				}
 
-				if (typeof input === "string") {
-					cookies[name] = {};
-					return cookies;
-				}
-
 				cookies[name] = definition;
 				return cookies;
 			}, newObject<Record<CookieName, CookieDefinition<CookieName>>>()),
