@@ -50,15 +50,18 @@ export type FamiContextWrapper<CookieName extends string> = <
  *
  * @example
  * ```ts
- * const context = fami(["session"]);
+ * import { create } from "@kaito-http/core";
+ * import { fami } from "fami/kaito";
  *
  * const kaito = create({
- *   getContext: context((req, head) => {
+ *   getContext: (req, head) => {
  *     // your usual context function
  *     // it will be merged with the Fami context
- *   }),
- * });
+ *   },
+ * }).pipe(fami(["session", "tracking"]));
  * ```
+ *
+ * @see {@link Fami} for more details on cookie definitions and management
  */
 export function fami<Names extends string>(
 	cookieInit: FamiInput<Names> | Fami<Names>,
