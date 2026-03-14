@@ -58,7 +58,7 @@ export function fami<Names extends string>(
 ) {
 	const fami = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 
-	return <C extends {} | undefined, P>(
+	return <C extends {} | null | undefined, P>(
 		context: NoOverlap<C, FamiContext<Names>> & C,
 		params: P,
 		req: KaitoRequestStub,
