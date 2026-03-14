@@ -82,12 +82,12 @@ The High-level API provides a simple and intuitive abstraction for managing your
 import { Fami } from "fami";
 
 const fami = new Fami({
-  theme: {},
-  session: {
-    httpOnly: true,
-    secure: true,
-    maxAge: 3600,
-  },
+	theme: {},
+	session: {
+		httpOnly: true,
+		secure: true,
+		maxAge: 3600,
+	},
 });
 
 const cookies = fami.parse("theme=light; session=value");
@@ -101,7 +101,7 @@ console.log(theme);
 
 // You can also override the default attributes with your own
 const session = fami.serialize("session", "value", {
-  maxAge: 7200,
+	maxAge: 7200,
 });
 console.log(session);
 // "session=value; Max-Age=7200; Secure; HttpOnly"
@@ -128,9 +128,9 @@ console.log(cookies);
 import { serialize } from "fami";
 
 const cookie = serialize("session", "value", {
-  httpOnly: true,
-  secure: true,
-  maxAge: 3600,
+	httpOnly: true,
+	secure: true,
+	maxAge: 3600,
 });
 
 console.log(cookie);
@@ -193,13 +193,13 @@ const f = fami({ session: {} });
 app.use(f.middleware());
 
 app.get(
-  "/",
-  f.handler((req, res) => {
-    const session = req.cookies.session; // typed as string | undefined
+	"/",
+	f.handler((req, res) => {
+		const session = req.cookies.session; // typed as string | undefined
 
-    res.setCookie("session", "value"); // autocomplete for cookie names
-    res.json({ session }); // full Express autocomplete
-  })
+		res.setCookie("session", "value"); // autocomplete for cookie names
+		res.json({ session }); // full Express autocomplete
+	}),
 );
 
 app.listen(3000);

@@ -1,10 +1,6 @@
 import { describe, expect, test, vi } from "bun:test";
 import { Fami } from "../src/fami";
-import {
-	fami as createFami,
-	type FamiContext,
-	type FamiContextWrapper,
-} from "../src/kaito";
+import { fami as createFami, type FamiContext } from "../src/kaito";
 
 function mockReq(cookie?: string) {
 	const headers = new Headers();
@@ -17,7 +13,7 @@ function mockHead() {
 }
 
 function applyContext<CookieName extends string>(
-	wrapper: FamiContextWrapper<CookieName>,
+	wrapper: ReturnType<typeof createFami<CookieName>>,
 	req = mockReq(),
 	head = mockHead(),
 ) {
