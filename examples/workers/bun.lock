@@ -5,7 +5,7 @@
     "": {
       "name": "workers",
       "dependencies": {
-        "fami": "^2.0.0-beta.2",
+        "fami": "^2.0.2",
       },
       "devDependencies": {
         "typescript": "^5.5.2",
@@ -160,7 +160,7 @@
 
     "esbuild": ["esbuild@0.27.3", "", { "optionalDependencies": { "@esbuild/aix-ppc64": "0.27.3", "@esbuild/android-arm": "0.27.3", "@esbuild/android-arm64": "0.27.3", "@esbuild/android-x64": "0.27.3", "@esbuild/darwin-arm64": "0.27.3", "@esbuild/darwin-x64": "0.27.3", "@esbuild/freebsd-arm64": "0.27.3", "@esbuild/freebsd-x64": "0.27.3", "@esbuild/linux-arm": "0.27.3", "@esbuild/linux-arm64": "0.27.3", "@esbuild/linux-ia32": "0.27.3", "@esbuild/linux-loong64": "0.27.3", "@esbuild/linux-mips64el": "0.27.3", "@esbuild/linux-ppc64": "0.27.3", "@esbuild/linux-riscv64": "0.27.3", "@esbuild/linux-s390x": "0.27.3", "@esbuild/linux-x64": "0.27.3", "@esbuild/netbsd-arm64": "0.27.3", "@esbuild/netbsd-x64": "0.27.3", "@esbuild/openbsd-arm64": "0.27.3", "@esbuild/openbsd-x64": "0.27.3", "@esbuild/openharmony-arm64": "0.27.3", "@esbuild/sunos-x64": "0.27.3", "@esbuild/win32-arm64": "0.27.3", "@esbuild/win32-ia32": "0.27.3", "@esbuild/win32-x64": "0.27.3" }, "bin": { "esbuild": "bin/esbuild" } }, "sha512-8VwMnyGCONIs6cWue2IdpHxHnAjzxnw2Zr7MkVxB2vjmQ2ivqGFb4LEG3SMnv0Gb2F/G/2yA8zUaiL1gywDCCg=="],
 
-    "fami": ["fami@2.0.0-beta.2", "", { "peerDependencies": { "@types/express": ">=5", "typescript": "^5" }, "optionalPeers": ["@types/express", "typescript"] }, "sha512-1/pBaZb8wr4GKarHLinhbVeQ6G5vc+hu0fZyBVTApc6cNmEl4jD7wrz1Rgq4nriaoc6UIoLoUSfWuKQNMI/7tw=="],
+    "fami": ["fami@2.0.2", "", { "peerDependencies": { "@types/express": ">=5", "typescript": "^5" }, "optionalPeers": ["@types/express", "typescript"] }, "sha512-2Xw5BK7VbVSzCfq8d8MqpURSXiy0X1rdT53srJebbzSkGfX+8LXPtATbfdqX/8BtInXHbAWSE79yNADc02Hnhw=="],
 
     "fsevents": ["fsevents@2.3.3", "", { "os": "darwin" }, "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="],
 

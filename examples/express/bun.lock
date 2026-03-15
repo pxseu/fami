@@ -6,7 +6,7 @@
       "name": "express",
       "dependencies": {
         "express": "^5.2.1",
-        "fami": "^2.0.0-beta.2",
+        "fami": "^2.0.2",
       },
       "devDependencies": {
         "@types/bun": "1.3.10",
@@ -82,7 +82,7 @@
 
     "express": ["express@5.2.1", "", { "dependencies": { "accepts": "^2.0.0", "body-parser": "^2.2.1", "content-disposition": "^1.0.0", "content-type": "^1.0.5", "cookie": "^0.7.1", "cookie-signature": "^1.2.1", "debug": "^4.4.0", "depd": "^2.0.0", "encodeurl": "^2.0.0", "escape-html": "^1.0.3", "etag": "^1.8.1", "finalhandler": "^2.1.0", "fresh": "^2.0.0", "http-errors": "^2.0.0", "merge-descriptors": "^2.0.0", "mime-types": "^3.0.0", "on-finished": "^2.4.1", "once": "^1.4.0", "parseurl": "^1.3.3", "proxy-addr": "^2.0.7", "qs": "^6.14.0", "range-parser": "^1.2.1", "router": "^2.2.0", "send": "^1.1.0", "serve-static": "^2.2.0", "statuses": "^2.0.1", "type-is": "^2.0.1", "vary": "^1.1.2" } }, "sha512-hIS4idWWai69NezIdRt2xFVofaF4j+6INOpJlVOLDO8zXGpUVEVzIYk12UUi2JzjEzWL3IOAxcTubgz9Po0yXw=="],
 
-    "fami": ["fami@2.0.0-beta.2", "", { "peerDependencies": { "@types/express": ">=5", "typescript": "^5" }, "optionalPeers": ["@types/express", "typescript"] }, "sha512-1/pBaZb8wr4GKarHLinhbVeQ6G5vc+hu0fZyBVTApc6cNmEl4jD7wrz1Rgq4nriaoc6UIoLoUSfWuKQNMI/7tw=="],
+    "fami": ["fami@2.0.2", "", { "peerDependencies": { "@types/express": ">=5", "typescript": "^5" }, "optionalPeers": ["@types/express", "typescript"] }, "sha512-2Xw5BK7VbVSzCfq8d8MqpURSXiy0X1rdT53srJebbzSkGfX+8LXPtATbfdqX/8BtInXHbAWSE79yNADc02Hnhw=="],
 
     "finalhandler": ["finalhandler@2.1.1", "", { "dependencies": { "debug": "^4.4.0", "encodeurl": "^2.0.0", "escape-html": "^1.0.3", "on-finished": "^2.4.1", "parseurl": "^1.3.3", "statuses": "^2.0.1" } }, "sha512-S8KoZgRZN+a5rNwqTxlZZePjT/4cnm0ROV70LedRHZ0p8u9fRID0hJUZQpkKLzro8LfmC8sx23bY6tVNxv8pQA=="],
 

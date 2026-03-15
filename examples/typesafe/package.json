@@ -4,6 +4,6 @@
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
-		"fami": "^2.0.0-beta.2"
+		"fami": "^2.0.2"
 	}
 }

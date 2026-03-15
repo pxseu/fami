@@ -5,7 +5,7 @@
     "": {
       "dependencies": {
         "@kaito-http/core": "^4.0.0-beta.33",
-        "fami": "^2.0.0-beta.2",
+        "fami": "^2.0.2",
       },
       "devDependencies": {
         "@types/bun": "1.3.8",
@@ -22,7 +22,7 @@
 
     "bun-types": ["bun-types@1.3.8", "", { "dependencies": { "@types/node": "*" } }, "sha512-fL99nxdOWvV4LqjmC+8Q9kW3M4QTtTR1eePs94v5ctGqU8OeceWrSUaRw3JYb7tU3FkMIAjkueehrHPPPGKi5Q=="],
 
-    "fami": ["fami@2.0.0-beta.2", "", { "peerDependencies": { "@types/express": ">=5", "typescript": "^5" }, "optionalPeers": ["@types/express", "typescript"] }, "sha512-1/pBaZb8wr4GKarHLinhbVeQ6G5vc+hu0fZyBVTApc6cNmEl4jD7wrz1Rgq4nriaoc6UIoLoUSfWuKQNMI/7tw=="],
+    "fami": ["fami@2.0.2", "", { "peerDependencies": { "@types/express": ">=5", "typescript": "^5" }, "optionalPeers": ["@types/express", "typescript"] }, "sha512-2Xw5BK7VbVSzCfq8d8MqpURSXiy0X1rdT53srJebbzSkGfX+8LXPtATbfdqX/8BtInXHbAWSE79yNADc02Hnhw=="],
 
     "openapi3-ts": ["openapi3-ts@4.5.0", "", { "dependencies": { "yaml": "^2.8.0" } }, "sha512-jaL+HgTq2Gj5jRcfdutgRGLosCy/hT8sQf6VOy+P+g36cZOjI1iukdPnijC+4CmeRzg/jEllJUboEic2FhxhtQ=="],
 
