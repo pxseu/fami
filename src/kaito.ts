@@ -26,6 +26,22 @@ export interface FamiContext<CookieName extends string> {
 	deleteCookie(...args: Parameters<Fami<CookieName>["delete"]>): void;
 }
 
+export interface FamiPipeContext<Names extends string> {
+	<C, P>(
+		context: NoOverlap<C, FamiContext<Names>> & C,
+		params: P,
+		req: KaitoRequestStub,
+		head: KaitoHeadStub,
+	): C & FamiContext<Names>;
+
+	<C, P>(
+		context: C extends null | undefined ? C : never,
+		params: P,
+		req: KaitoRequestStub,
+		head: KaitoHeadStub,
+	): FamiContext<Names>;
+}
+
 /**
  * Creates a Kaito context wrapper that includes the Fami instance and cookie management methods.
  * You should not call this function directly, simply wrap your current context function with it.
@@ -55,10 +71,10 @@ export interface FamiContext<CookieName extends string> {
  */
 export function fami<Names extends string>(
 	cookieInit: FamiInput<Names> | Fami<Names>,
-) {
+): FamiPipeContext<Names> {
 	const fami = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 
-	return <C extends {} | null | undefined, P>(
+	return <C, P>(
 		context: NoOverlap<C, FamiContext<Names>> & C,
 		params: P,
 		req: KaitoRequestStub,
@@ -70,9 +86,7 @@ export function fami<Names extends string>(
 				return fami;
 			},
 			get cookies() {
-				const cookies = Object.freeze(
-					fami.parse(req.headers.get("Cookie") ?? ""),
-				);
+				const cookies = Object.freeze(fami.parse(req.headers.get("Cookie")));
 				Object.defineProperties(this, {
 					cookies: {
 						value: cookies,

@@ -335,4 +335,19 @@ describe("kaito - createFami", () => {
 			expect(context.setCookie).toBeFunction();
 		});
 	});
+
+	test("works with kaito null context and undefined context", () => {
+		const wrapper = createFami({ session: {} });
+
+		const req = mockReq();
+		const head = mockHead();
+
+		const contextWithNull = wrapper(null, {}, req, head);
+		expect(contextWithNull.fami).toBeDefined();
+		expect(contextWithNull.cookies).toEqual({ session: undefined });
+
+		const contextWithUndefined = wrapper(undefined, {}, req, head);
+		expect(contextWithUndefined.fami).toBeDefined();
+		expect(contextWithUndefined.cookies).toEqual({ session: undefined });
+	});
 });
