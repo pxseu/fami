@@ -1,4 +1,5 @@
 import { Fami, type FamiInput } from "./fami";
+import type { CookieAttributes, CookieValue } from "./types";
 
 type NoOverlap<T, U> = {
 	[K in keyof T & keyof U]: never;
@@ -7,39 +8,51 @@ type NoOverlap<T, U> = {
 export type KaitoRequestStub = { headers: Headers };
 export type KaitoHeadStub = { headers: Headers };
 
-export interface FamiContext<CookieName extends string> {
+export interface FamiContext<
+	CookieName extends string,
+	Defs extends FamiInput<CookieName>,
+> {
 	/**
 	 *  The Fami instance that is used to manage cookie definitions and serialize/parse/delete cookies
 	 */
-	readonly fami: Fami<CookieName>;
+	readonly fami: Fami<CookieName, Defs>;
 	/**
 	 *  Lazy parsed cookies from the request header.
 	 */
-	readonly cookies: ReturnType<Fami<CookieName>["parse"]>;
+	readonly cookies: ReturnType<Fami<CookieName, Defs>["parse"]>;
 	/**
 	 *  Create a Set-Cookie header value that with the given name, value and attributes, and add it to the response header
 	 */
-	setCookie(...args: Parameters<Fami<CookieName>["serialize"]>): void;
+	setCookie<Name extends CookieName>(
+		name: Name,
+		value: CookieValue,
+		attributes?: CookieAttributes,
+	): Defs[Name] extends { secret: unknown } ? Promise<void> : void;
 	/**
 	 *  Create a Set-Cookie header value that removes the cookie from the client (set maxAge to 0 and expires to `new Date(0)`)
 	 */
-	deleteCookie(...args: Parameters<Fami<CookieName>["delete"]>): void;
+	deleteCookie<Name extends CookieName>(
+		name: Name,
+	): Defs[Name] extends { secret: unknown } ? Promise<void> : void;
 }
 
-export interface FamiPipeContext<Names extends string> {
+export interface FamiPipeContext<
+	Names extends string,
+	Defs extends FamiInput<Names>,
+> {
 	<C, P>(
-		context: NoOverlap<C, FamiContext<Names>> & C,
+		context: NoOverlap<C, FamiContext<Names, Defs>> & C,
 		params: P,
 		req: KaitoRequestStub,
 		head: KaitoHeadStub,
-	): C & FamiContext<Names>;
+	): C & FamiContext<Names, Defs>;
 
 	<C, P>(
 		context: C extends null | undefined ? C : never,
 		params: P,
 		req: KaitoRequestStub,
 		head: KaitoHeadStub,
-	): FamiContext<Names>;
+	): FamiContext<Names, Defs>;
 }
 
 /**
@@ -69,24 +82,58 @@ export interface FamiPipeContext<Names extends string> {
  *
  * @see {@link Fami} for more details on cookie definitions and management
  */
-export function fami<Names extends string>(
-	cookieInit: FamiInput<Names> | Fami<Names>,
-): FamiPipeContext<Names> {
-	const fami = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
+export function fami<
+	CookieName extends string,
+	Defs extends FamiInput<CookieName>,
+>(
+	cookieInit: (FamiInput<CookieName> & Defs) | Fami<CookieName, Defs>,
+): FamiPipeContext<CookieName, Defs> {
+	const f = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 
 	return <C, P>(
-		context: NoOverlap<C, FamiContext<Names>> & C,
-		params: P,
+		context: NoOverlap<C, FamiContext<CookieName, Defs>> & C,
+		_params: P,
 		req: KaitoRequestStub,
 		head: KaitoHeadStub,
-	): C & FamiContext<Names> => {
+	): C & FamiContext<CookieName, Defs> => {
+		// i know this looks so ugly but for now it's the only way to have proper typings for setCookie and deleteCookie
+		function setCookie<Name extends CookieName>(
+			...args: Parameters<Fami<Name, Defs>["serialize"]>
+		): Defs[Name] extends { secret: unknown } ? Promise<void> : void;
+		function setCookie(
+			name: CookieName,
+			value: CookieValue,
+			attributes?: CookieAttributes,
+		): void | Promise<void> {
+			const header = f.serialize(name, value, attributes);
+			if (header instanceof Promise) {
+				return header.then((h) => {
+					head.headers.append("Set-Cookie", h);
+				});
+			}
+			head.headers.append("Set-Cookie", header);
+		}
+
+		function deleteCookie<Name extends CookieName>(
+			...args: Parameters<Fami<Name, Defs>["delete"]>
+		): Defs[Name] extends { secret: unknown } ? Promise<void> : void;
+		function deleteCookie(name: CookieName): void | Promise<void> {
+			const header = f.delete(name);
+			if (header instanceof Promise) {
+				return header.then((h) => {
+					head.headers.append("Set-Cookie", h);
+				});
+			}
+			head.headers.append("Set-Cookie", header);
+		}
+
 		return {
 			...(context ?? {}),
 			get fami() {
-				return fami;
+				return f;
 			},
 			get cookies() {
-				const cookies = Object.freeze(fami.parse(req.headers.get("Cookie")));
+				const cookies = Object.freeze(f.parse(req.headers.get("Cookie")));
 				Object.defineProperties(this, {
 					cookies: {
 						value: cookies,
@@ -96,12 +143,8 @@ export function fami<Names extends string>(
 				});
 				return cookies;
 			},
-			setCookie(...args: Parameters<typeof fami.serialize>) {
-				head.headers.append("Set-Cookie", fami.serialize(...args));
-			},
-			deleteCookie(...args: Parameters<typeof fami.delete>) {
-				head.headers.append("Set-Cookie", fami.delete(...args));
-			},
+			setCookie,
+			deleteCookie,
 		};
 	};
 }

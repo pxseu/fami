@@ -104,10 +104,17 @@ export function newObject<T extends object>(): T {
 	return Object.create(null) as T;
 }
 
-export function entries<T extends object>(obj: T): [keyof T, T[keyof T]][] {
-	return Object.entries(obj) as [keyof T, T[keyof T]][];
+type MaybeReadonly<T> = T | Readonly<T>;
+
+export function entries<
+	K extends string,
+	T extends MaybeReadonly<Record<K, unknown>>,
+>(obj: Record<K, unknown> & T): [K, T[K]][] {
+	return Object.entries(obj) as [K, T[K]][];
 }
 
-export function keys<T extends object>(obj: T): (keyof T)[] {
-	return Object.keys(obj) as (keyof T)[];
+export function keys<K extends string>(
+	obj: MaybeReadonly<Record<K, unknown>>,
+): K[] {
+	return Object.keys(obj) as K[];
 }

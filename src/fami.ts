@@ -1,3 +1,4 @@
+import { signPipeline } from "./crypto";
 import { FamiError, InvalidAttributeError, InvalidNameError } from "./errors";
 import {
 	entries,
@@ -41,6 +42,8 @@ export type CookieDefinition<_ extends string> = Partial<{
 	 * @see https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers/Set-Cookie#expiresdate
 	 */
 	expires: () => Date;
+
+	secret: string;
 }> &
 	Omit<CookieAttributes, "expires">;
 
@@ -88,14 +91,16 @@ export type FamiInput<Name extends string> = {
  * type Names = InferCookieNames<typeof cookies>; // "session" | "theme"
  * ```
  */
-export class Fami<CookieName extends string> {
-	readonly #cookies: Record<CookieName, CookieDefinition<CookieName>>;
+export class Fami<
+	CookieName extends string,
+	Definition extends FamiInput<CookieName>,
+> {
+	readonly #cookies: Readonly<Definition>;
 
 	/**
 	 * @param cookieDefinitions An object mapping cookie names to definitions
 	 */
-	constructor(cookieDefinitions: FamiInput<CookieName>);
-	constructor(input: FamiInput<CookieName>) {
+	constructor(input: FamiInput<CookieName> & Definition) {
 		// freeze the cookies object to prevent mutation via the public API
 		this.#cookies = Object.freeze(
 			entries(input).reduce((cookies, [name, definition]) => {
@@ -141,7 +146,7 @@ export class Fami<CookieName extends string> {
 
 				cookies[name] = definition;
 				return cookies;
-			}, newObject<Record<CookieName, CookieDefinition<CookieName>>>()),
+			}, newObject<Definition>()),
 		);
 	}
 
@@ -152,52 +157,35 @@ export class Fami<CookieName extends string> {
 	 * @param attributes optional attributes to override or extend the defaults
 	 * @returns Set-Cookie header value string
 	 */
+	serialize<Name extends CookieName, Attrs extends CookieAttributes>(
+		name: Name,
+		value: CookieValue,
+		attributes?: Attrs,
+	): Definition[Name] extends { secret: unknown } ? Promise<string> : string;
 	serialize(
 		name: CookieName,
 		value: CookieValue,
 		attributes?: CookieAttributes,
-	): string {
+	): string | Promise<string> {
 		if (!this.#cookies[name]) {
 			console.warn(
 				`Unregistered cookie name (${name}) was used. Consider registering it in your Fami instance for better type safety and default attributes.`,
 			);
 		}
 
-		const { expires: expiresFn, ...defaults } = this.#cookies[name] ?? {};
-
-		return serializeRaw(name, value, {
-			...defaults,
+		const attribute = {
+			...(this.#cookies[name] ?? {}),
 			...attributes,
-			expires: attributes?.expires ?? expiresFn?.(),
-		});
-	}
+			expires: attributes?.expires ?? this.#cookies[name]?.expires?.(),
+		};
 
-	/**
-	 * Serialize all cookies in the record
-	 * @param cookies the cookies to serialize, either a string value or an object with a `value` property and optional attributes
-	 * @returns the Set-Cookie header value strings
-	 */
-	serializeAll(
-		cookies: Partial<
-			Record<
-				CookieName,
-				CookieValue | ({ value: CookieValue } & CookieAttributes)
-			>
-		>,
-	): string[] {
-		const out: string[] = [];
-
-		for (const [name, maybeValue] of entries(cookies)) {
-			// undefined values are ignored
-			if (maybeValue == null) continue;
-
-			const { value, ...attributes } =
-				typeof maybeValue !== "object" ? { value: maybeValue } : maybeValue;
-
-			out.push(this.serialize(name, value, attributes));
+		if (attribute.secret) {
+			return signPipeline(attribute.secret, String(value)).then((signed) =>
+				serializeRaw(name, signed, attribute),
+			);
 		}
 
-		return out;
+		return serializeRaw(name, value, attribute);
 	}
 
 	/**
@@ -222,7 +210,9 @@ export class Fami<CookieName extends string> {
 	 * @param name the cookie name to delete
 	 * @returns the Set-Cookie header value to delete the cookie
 	 */
-	delete(name: CookieName): string {
+	delete<Name extends CookieName>(
+		name: Name,
+	): Definition[Name] extends { secret: unknown } ? Promise<string> : string {
 		return this.serialize(name, "", {
 			maxAge: 0,
 			expires: new Date(0),
@@ -234,7 +224,9 @@ export class Fami<CookieName extends string> {
 	 * @param name the cookie name
 	 * @returns the cookie definition or undefined if not registered
 	 */
-	getDefinition(name: CookieName): CookieDefinition<CookieName> | undefined {
+	getDefinition<Name extends CookieName>(
+		name: Name,
+	): Definition[Name] | undefined {
 		return this.#cookies[name];
 	}
 
@@ -252,13 +244,13 @@ export class Fami<CookieName extends string> {
 	 * @returns array of registered cookie names
 	 */
 	getNames(): CookieName[] {
-		return Object.keys(this.#cookies) as CookieName[];
+		return keys(this.#cookies);
 	}
 
 	/**
 	 * All registered cookies
 	 */
-	get cookies(): Record<CookieName, CookieDefinition<CookieName>> {
+	get cookies(): Definition {
 		return this.#cookies;
 	}
 }
@@ -272,5 +264,5 @@ export class Fami<CookieName extends string> {
  * type Names = InferCookieNames<typeof fami>; // "tracking" | "session"
  * ```
  */
-export type InferCookieNames<T extends Fami<string>> =
-	T extends Fami<infer Names> ? Names : never;
+export type InferCookieNames<T> =
+	T extends Fami<infer Names, infer _Defs> ? Names : never;
