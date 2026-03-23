@@ -104,7 +104,7 @@ export function fami<
 		// i know this looks so ugly but for now it's the only way to have proper typings for setCookie and deleteCookie
 		function setCookie<Name extends CookieName>(
 			...args: Parameters<Fami<Name, Defs>["serialize"]>
-		): Defs[Name] extends { secret: unknown } ? Promise<void> : void;
+		): PromiseIfSecret<Name, Defs, void>;
 		function setCookie(
 			name: CookieName,
 			value: CookieValue,
@@ -123,7 +123,7 @@ export function fami<
 
 		function deleteCookie<Name extends CookieName>(
 			...args: Parameters<Fami<Name, Defs>["delete"]>
-		): Defs[Name] extends { secret: unknown } ? Promise<void> : void;
+		): PromiseIfSecret<Name, Defs, void>;
 		function deleteCookie(name: CookieName): MaybePromise<void> {
 			const header = f.delete(name);
 

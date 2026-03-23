@@ -1,5 +1,11 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { Fami, type FamiCookies, type FamiInput } from "./fami";
+import {
+	Fami,
+	type FamiCookies,
+	type FamiInput,
+	type PromiseIfSecret,
+} from "./fami";
+import type { CookieAttributes, CookieValue } from "./types";
 
 export type ExpressRequestStub = { headers: { cookie?: string } };
 export type ExpressResponseStub = {
@@ -11,45 +17,65 @@ export type NextFunctionStub = (err?: unknown) => void;
 /**
  * Properties added to the request object by the Fami middleware
  */
-export type FamiRequest<CookieName extends string> = {
+export type FamiRequest<
+	CookieName extends string,
+	Definition extends FamiInput<CookieName>,
+> = {
 	/**
 	 * The Fami instance that is used to manage cookie definitions and serialize/parse/delete cookies
 	 */
-	readonly fami: Fami<CookieName>;
+	readonly fami: Fami<CookieName, Definition>;
 	/**
 	 * Lazy parsed cookies from the request header.
 	 * Only parsed when first accessed and cached for subsequent reads.
 	 */
-	readonly cookies: Record<CookieName, string | undefined>;
+	readonly cookies: ReturnType<Fami<CookieName, Definition>["parse"]>;
 };
 
 /**
  * Properties added to the response object by the Fami middleware
  */
-export type FamiResponse<CookieName extends string> = {
+export type FamiResponse<
+	CookieName extends string,
+	Definition extends FamiInput<CookieName>,
+> = {
 	/**
 	 * The cookie jar containing all pending Set-Cookie header values.
 	 * Keyed by cookie name -- only the last operation per cookie is kept.
 	 * Inspect this before the response is sent to see what cookies will be set.
 	 */
-	readonly cookieJar: ReadonlyMap<CookieName, string>;
+	readonly cookieJar: ReadonlyMap<
+		CookieName,
+		PromiseIfSecret<CookieName, Definition>
+	>;
 	/**
 	 * Create a Set-Cookie header value with the given name, value and attributes, and add it to the cookie jar.
 	 * The jar is flushed to Set-Cookie headers when the response is sent.
 	 */
-	setCookie(...args: Parameters<Fami<CookieName>["serialize"]>): void;
 	/**
-	 * Create a Set-Cookie header value that removes the cookie from the client (set maxAge to 0 and expires to `new Date(0)`).
-	 * The deletion is added to the cookie jar and flushed when the response is sent.
+	 *  Create a Set-Cookie header value that with the given name, value and attributes, and add it to the response header
 	 */
-	deleteCookie(...args: Parameters<Fami<CookieName>["delete"]>): void;
+	setCookie<Name extends CookieName>(
+		name: Name,
+		value: CookieValue,
+		attributes?: CookieAttributes,
+	): PromiseIfSecret<Name, Definition, void>;
+	/**
+	 *  Create a Set-Cookie header value that removes the cookie from the client (set maxAge to 0 and expires to `new Date(0)`)
+	 */
+	deleteCookie<Name extends CookieName>(
+		name: Name,
+	): PromiseIfSecret<Name, Definition, void>;
 };
 
 /**
  * The Express adapter interface returned by `fami`.
  * Provides a middleware for runtime augmentation and a handler wrapper for type narrowing.
  */
-export type FamiExpress<CookieName extends string> = {
+export type FamiExpress<
+	CookieName extends string,
+	Definition extends FamiInput<CookieName>,
+> = {
 	/**
 	 * Express middleware that augments `req` and `res` with Fami cookie management.
 	 * Must be applied via `app.use()` before routes that use `fami.handler()`.
@@ -83,20 +109,20 @@ export type FamiExpress<CookieName extends string> = {
 	 */
 	handler(
 		fn: (
-			req: Omit<Request, keyof FamiRequest<CookieName>> &
-				FamiRequest<CookieName>,
-			res: Omit<Response, keyof FamiResponse<CookieName>> &
-				FamiResponse<CookieName>,
+			req: Omit<Request, keyof FamiRequest<CookieName, Definition>> &
+				FamiRequest<CookieName, Definition>,
+			res: Omit<Response, keyof FamiResponse<CookieName, Definition>> &
+				FamiResponse<CookieName, Definition>,
 			next: NextFunction,
 		) => void,
 	): RequestHandler;
 };
 
-function createRequest<CookieName extends string>(
-	req: ExpressRequestStub,
-	fami: Fami<CookieName>,
-) {
-	let lazyCookies: FamiCookies<CookieName> | undefined;
+function createRequest<
+	CookieName extends string,
+	Definition extends FamiInput<CookieName>,
+>(req: ExpressRequestStub, fami: Fami<CookieName, Definition>) {
+	let lazyCookies: FamiCookies<CookieName, Definition> | undefined;
 
 	Object.defineProperties(req, {
 		fami: {
@@ -114,11 +140,11 @@ function createRequest<CookieName extends string>(
 	});
 }
 
-function createResponse<CookieName extends string>(
-	res: ExpressResponseStub,
-	fami: Fami<CookieName>,
-) {
-	const jar = new Map<CookieName, string>();
+function createResponse<
+	CookieName extends string,
+	Definition extends FamiInput<CookieName>,
+>(res: ExpressResponseStub, fami: Fami<CookieName, Definition>) {
+	const jar = new Map<CookieName, PromiseIfSecret<CookieName, Definition>>();
 	const originalWriteHead = res.writeHead;
 
 	Object.defineProperties(res, {
@@ -140,9 +166,26 @@ function createResponse<CookieName extends string>(
 		},
 		writeHead: {
 			value: function (this: ExpressResponseStub, ...args: unknown[]) {
+				const promises = [];
+
 				for (const value of jar.values()) {
-					res.append("Set-Cookie", value);
+					if (value instanceof Promise) {
+						promises.push(
+							value.then((h) => 
+								res.append("Set-Cookie", h)
+							),
+						);
+					} else {
+						res.append("Set-Cookie", value);
+					}
 				}
+
+				if (promises.length > 0) {
+					return Promise.all(promises).then(() =>
+						originalWriteHead.apply(this, args),
+					);
+				}
+
 				return originalWriteHead.apply(this, args);
 			},
 			configurable: true,
@@ -177,9 +220,12 @@ function createResponse<CookieName extends string>(
  * }));
  * ```
  */
-export function fami<CookieName extends string>(
-	cookieInit: FamiInput<CookieName> | Fami<CookieName>,
-): FamiExpress<CookieName> {
+export function fami<
+	CookieName extends string,
+	Definition extends FamiInput<CookieName>,
+>(
+	cookieInit: FamiInput<CookieName> | Fami<CookieName, Definition>,
+): FamiExpress<CookieName, Definition> {
 	const fami = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 
 	return {

@@ -5,7 +5,7 @@ import {
 	type FamiRequest,
 	type FamiResponse,
 } from "../src/express";
-import { Fami } from "../src/fami";
+import { Fami, type FamiInput } from "../src/fami";
 
 function mockReq(cookie?: string) {
 	return {
@@ -43,17 +43,20 @@ function mockRes() {
 
 function noop() {}
 
-function applyMiddleware<CookieName extends string>(
-	fami: FamiExpress<CookieName>,
+function applyMiddleware<
+	CookieName extends string,
+	Defs extends FamiInput<CookieName>,
+>(
+	fami: FamiExpress<CookieName, Defs>,
 	req: ReturnType<typeof mockReq>,
 	mock: ReturnType<typeof mockRes>,
 	next?: (err?: unknown) => void,
 ) {
 	fami.middleware()(req, mock.res, next ?? noop);
 	return {
-		req: req as ReturnType<typeof mockReq> & FamiRequest<CookieName>,
+		req: req as ReturnType<typeof mockReq> & FamiRequest<CookieName, Defs>,
 		res: mock.res as ReturnType<typeof mockRes>["res"] &
-			FamiResponse<CookieName>,
+			FamiResponse<CookieName, Defs>,
 	};
 }
 
