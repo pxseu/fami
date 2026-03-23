@@ -16,6 +16,13 @@ import type { CookieAttributes, CookieValue } from "./types";
 
 export type MaybePromise<T> = T | Promise<T>;
 
+/**
+ * Fami cookies object. Can be used to access parsed cookie values with correct types, including promise types for secret cookies.
+ *
+ * For each registered cookie name, the value is either a string or a promise of a string if the cookie is signed with a secret.
+ * If the cookie is not present in the parsed header, the value will be undefined (or a promise of undefined for secret cookies).
+ * If the cookie is signed but fails verification, the value will be undefined (not a rejected promise) to simplify error handling.
+ */
 export type FamiCookies<
 	CookieName extends string,
 	Defs extends FamiInput<CookieName>,
@@ -166,7 +173,7 @@ export class Fami<
 	 * @param name the registered cookie name
 	 * @param value the cookie value
 	 * @param attributes optional attributes to override or extend the defaults
-	 * @returns Set-Cookie header value string
+	 * @returns Set-Cookie header value string or a promise of it if the cookie is signed with a secret
 	 */
 	serialize<Name extends CookieName>(
 		name: Name,
@@ -202,7 +209,8 @@ export class Fami<
 	/**
 	 * Parse a Cookie header value into a record of cookie names and values
 	 * @param cookieHeader The Cookie header value to parse
-	 * @returns A record of cookie names and values
+	 * @returns `FamiCookies` object with cookie names as keys and parsed values (or promises of values for secret cookies)
+	 * @remarks For secret cookies, if the cookie is not present or fails verification, the value will be undefined (not a rejected promise) to simplify error handling.
 	 */
 	parse(
 		cookieHeader: Parameters<typeof parseRaw>[0],
@@ -240,7 +248,7 @@ export class Fami<
 	/**
 	 * Create a Set-Cookie header that removes the cookie from the client (set maxAge to 0 and expires to `new Date(0)`)
 	 * @param name the cookie name to delete
-	 * @returns the Set-Cookie header value to delete the cookie
+	 * @returns the Set-Cookie header value to delete the cookie or a promise of it if the cookie is signed with a secret
 	 */
 	delete<Name extends CookieName>(
 		name: Name,
@@ -298,13 +306,3 @@ export class Fami<
  */
 export type InferCookieNames<T> =
 	T extends Fami<infer Names, infer _Defs> ? Names : never;
-
-const f = new Fami({
-	session: { secret: "XD" },
-	tracking: {},
-});
-
-const h = f.parse("XDDD");
-
-const _ses = h.session;
-const _track = h.tracking;
