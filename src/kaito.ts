@@ -1,4 +1,9 @@
-import { Fami, type FamiInput } from "./fami";
+import {
+	Fami,
+	type FamiInput,
+	type MaybePromise,
+	type PromiseIfSecret,
+} from "./fami";
 import type { CookieAttributes, CookieValue } from "./types";
 
 type NoOverlap<T, U> = {
@@ -27,13 +32,13 @@ export interface FamiContext<
 		name: Name,
 		value: CookieValue,
 		attributes?: CookieAttributes,
-	): Defs[Name] extends { secret: unknown } ? Promise<void> : void;
+	): PromiseIfSecret<Name, Defs, void>;
 	/**
 	 *  Create a Set-Cookie header value that removes the cookie from the client (set maxAge to 0 and expires to `new Date(0)`)
 	 */
 	deleteCookie<Name extends CookieName>(
 		name: Name,
-	): Defs[Name] extends { secret: unknown } ? Promise<void> : void;
+	): PromiseIfSecret<Name, Defs, void>;
 }
 
 export interface FamiPipeContext<
@@ -104,26 +109,30 @@ export function fami<
 			name: CookieName,
 			value: CookieValue,
 			attributes?: CookieAttributes,
-		): void | Promise<void> {
+		): MaybePromise<void> {
 			const header = f.serialize(name, value, attributes);
+
 			if (header instanceof Promise) {
 				return header.then((h) => {
 					head.headers.append("Set-Cookie", h);
 				});
 			}
+
 			head.headers.append("Set-Cookie", header);
 		}
 
 		function deleteCookie<Name extends CookieName>(
 			...args: Parameters<Fami<Name, Defs>["delete"]>
 		): Defs[Name] extends { secret: unknown } ? Promise<void> : void;
-		function deleteCookie(name: CookieName): void | Promise<void> {
+		function deleteCookie(name: CookieName): MaybePromise<void> {
 			const header = f.delete(name);
+
 			if (header instanceof Promise) {
 				return header.then((h) => {
 					head.headers.append("Set-Cookie", h);
 				});
 			}
+
 			head.headers.append("Set-Cookie", header);
 		}
 
@@ -134,6 +143,7 @@ export function fami<
 			},
 			get cookies() {
 				const cookies = Object.freeze(f.parse(req.headers.get("Cookie")));
+
 				Object.defineProperties(this, {
 					cookies: {
 						value: cookies,
@@ -141,6 +151,7 @@ export function fami<
 						configurable: true,
 					},
 				});
+
 				return cookies;
 			},
 			setCookie,

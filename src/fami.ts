@@ -1,4 +1,4 @@
-import { signPipeline } from "./crypto";
+import { signPipeline, verifyPipeline } from "./crypto";
 import { FamiError, InvalidAttributeError, InvalidNameError } from "./errors";
 import {
 	entries,
@@ -14,9 +14,14 @@ import {
 import { parse as parseRaw, serialize as serializeRaw } from "./parser";
 import type { CookieAttributes, CookieValue } from "./types";
 
-export type FamiCookies<CookieName extends string> = Partial<
-	Record<CookieName, string>
->;
+export type MaybePromise<T> = T | Promise<T>;
+
+export type FamiCookies<
+	CookieName extends string,
+	Defs extends FamiInput<CookieName>,
+> = {
+	[C in CookieName]: PromiseIfSecret<C, Defs, string | undefined>;
+};
 
 // Phantom type to ensure the name is "used" by TypeScript
 export type CookieDefinition<_ extends string> = Partial<{
@@ -50,6 +55,12 @@ export type CookieDefinition<_ extends string> = Partial<{
 export type FamiInput<Name extends string> = {
 	readonly [K in Name]: CookieDefinition<K>;
 };
+
+export type PromiseIfSecret<
+	Name extends string,
+	Def extends FamiInput<Name>,
+	Return = string,
+> = Def[Name] extends { secret: unknown } ? Promise<Return> : Return;
 
 /**
  * Fami - A type-safe cookie manager for modern web applications
@@ -157,16 +168,16 @@ export class Fami<
 	 * @param attributes optional attributes to override or extend the defaults
 	 * @returns Set-Cookie header value string
 	 */
-	serialize<Name extends CookieName, Attrs extends CookieAttributes>(
+	serialize<Name extends CookieName>(
 		name: Name,
 		value: CookieValue,
-		attributes?: Attrs,
-	): Definition[Name] extends { secret: unknown } ? Promise<string> : string;
+		attributes?: CookieAttributes,
+	): PromiseIfSecret<Name, Definition>;
 	serialize(
 		name: CookieName,
 		value: CookieValue,
 		attributes?: CookieAttributes,
-	): string | Promise<string> {
+	): MaybePromise<string> {
 		if (!this.#cookies[name]) {
 			console.warn(
 				`Unregistered cookie name (${name}) was used. Consider registering it in your Fami instance for better type safety and default attributes.`,
@@ -193,16 +204,37 @@ export class Fami<
 	 * @param cookieHeader The Cookie header value to parse
 	 * @returns A record of cookie names and values
 	 */
-	parse(cookieHeader: Parameters<typeof parseRaw>[0]): FamiCookies<CookieName> {
+	parse(
+		cookieHeader: Parameters<typeof parseRaw>[0],
+	): FamiCookies<CookieName, Definition> {
 		const parsed = parseRaw(cookieHeader);
 
-		const cookies = newObject<FamiCookies<CookieName>>();
+		const cookies = newObject<FamiCookies<CookieName, Definition>>();
 
 		for (const name of keys(this.#cookies)) {
-			cookies[name] = parsed[name];
+			cookies[name] = this.parseOne(name, parsed[name]);
 		}
 
 		return cookies;
+	}
+
+	private parseOne<Name extends CookieName>(
+		name: Name,
+		raw: string | undefined,
+	): PromiseIfSecret<Name, Definition, string | undefined>;
+	private parseOne(
+		name: CookieName,
+		raw: string | undefined,
+	): MaybePromise<string | undefined> {
+		const secret = this.#cookies[name]?.secret;
+
+		if (secret) {
+			return verifyPipeline(secret, raw).then((v) =>
+				v === false ? undefined : v,
+			);
+		}
+
+		return raw;
 	}
 
 	/**
@@ -212,7 +244,7 @@ export class Fami<
 	 */
 	delete<Name extends CookieName>(
 		name: Name,
-	): Definition[Name] extends { secret: unknown } ? Promise<string> : string {
+	): PromiseIfSecret<Name, Definition> {
 		return this.serialize(name, "", {
 			maxAge: 0,
 			expires: new Date(0),
@@ -266,3 +298,13 @@ export class Fami<
  */
 export type InferCookieNames<T> =
 	T extends Fami<infer Names, infer _Defs> ? Names : never;
+
+const f = new Fami({
+	session: { secret: "XD" },
+	tracking: {},
+});
+
+const h = f.parse("XDDD");
+
+const _ses = h.session;
+const _track = h.tracking;

@@ -1,3 +1,7 @@
+const SEPARATOR = ".";
+const ENCODING = "base64url";
+const ALGORITHM = { name: "HMAC", hash: "SHA-256" } as const;
+
 export function importKey(key: string | CryptoKey): Promise<CryptoKey> {
 	if (key instanceof CryptoKey) {
 		return Promise.resolve(key);
@@ -6,7 +10,7 @@ export function importKey(key: string | CryptoKey): Promise<CryptoKey> {
 	return crypto.subtle.importKey(
 		"raw",
 		new TextEncoder().encode(key),
-		{ name: "HMAC", hash: "SHA-256" },
+		ALGORITHM,
 		false,
 		["sign", "verify"],
 	);
@@ -17,16 +21,16 @@ export async function signValue(
 	value: string,
 ): Promise<string> {
 	const digest = await crypto.subtle.sign(
-		"HMAC",
+		ALGORITHM,
 		key,
 		new TextEncoder().encode(value),
 	);
 
 	const sig = new Uint8Array(digest).toBase64({
-		alphabet: "base64url",
+		alphabet: ENCODING,
 	});
 
-	return `${value}.${sig}`;
+	return `${value}${SEPARATOR}${sig}`;
 }
 
 export async function signPipeline(
@@ -50,7 +54,7 @@ export async function verifyValue(
 	key: CryptoKey,
 	signedValue: string,
 ): Promise<string | false> {
-	const lastDotIndex = signedValue.lastIndexOf(".");
+	const lastDotIndex = signedValue.lastIndexOf(SEPARATOR);
 	if (lastDotIndex === -1) {
 		return false;
 	}
@@ -59,11 +63,11 @@ export async function verifyValue(
 	const sig = signedValue.slice(lastDotIndex + 1);
 
 	const bytes = Uint8Array.fromBase64(sig, {
-		alphabet: "base64url",
+		alphabet: ENCODING,
 	});
 
 	const valid = await crypto.subtle.verify(
-		"HMAC",
+		ALGORITHM,
 		key,
 		bytes,
 		new TextEncoder().encode(value),
@@ -74,8 +78,12 @@ export async function verifyValue(
 
 export async function verifyPipeline(
 	key: string | CryptoKey | Promise<CryptoKey>,
-	signedValue: string,
+	signedValue?: string,
 ) {
+	if (!signedValue) {
+		return Promise.resolve(false as const);
+	}
+
 	let crypto_key: CryptoKey;
 
 	if (key instanceof Promise) {

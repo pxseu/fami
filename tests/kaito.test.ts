@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "bun:test";
-import { Fami } from "../src/fami";
-import { fami as createFami, type FamiContext } from "../src/kaito";
+import { Fami, type FamiInput } from "../src/fami";
+import { fami as createFami } from "../src/kaito";
 
 function mockReq(cookie?: string) {
 	const headers = new Headers();
@@ -13,7 +13,7 @@ function mockHead() {
 }
 
 function applyContext<CookieName extends string>(
-	wrapper: ReturnType<typeof createFami<CookieName>>,
+	wrapper: ReturnType<typeof createFami<CookieName, FamiInput<CookieName>>>,
 	req = mockReq(),
 	head = mockHead(),
 ) {
@@ -328,7 +328,7 @@ describe("kaito - createFami", () => {
 				{},
 				req,
 				head,
-			) as unknown as FamiContext<"session">;
+			) as unknown as ReturnType<typeof wrapper>;
 
 			expect(context.fami).toBeDefined();
 			expect(context.cookies).toEqual({ session: undefined });
