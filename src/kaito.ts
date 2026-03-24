@@ -1,10 +1,5 @@
-import {
-	Fami,
-	type FamiInput,
-	type MaybePromise,
-	type PromiseIfSecret,
-} from "./fami";
-import type { CookieAttributes, CookieValue } from "./types";
+import { Fami, type FamiInput, type PromiseIfSecret } from "./fami";
+import type { CookieAttributes, CookieValue, MaybePromise } from "./types";
 
 type NoOverlap<T, U> = {
 	[K in keyof T & keyof U]: never;

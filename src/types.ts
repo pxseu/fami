@@ -73,3 +73,6 @@ export type CookieAttributes = Partial<{
 export type Cookies = {
 	[key: string]: string;
 };
+
+export type MaybeReadonly<T> = T | Readonly<T>;
+export type MaybePromise<T> = T | Promise<T>;

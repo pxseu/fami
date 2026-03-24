@@ -1,4 +1,5 @@
 import { InvalidDateError } from "./errors";
+import type { MaybeReadonly } from "./types";
 
 export const COOKIE_SEPARATORS = /[;,]/;
 export const NAME_VALUE_MATCHER = /^([^=]+)=(.*)$/s;
@@ -103,8 +104,6 @@ export function capitalize<T extends string>(str: T): Capitalize<T> {
 export function newObject<T extends object>(): T {
 	return Object.create(null) as T;
 }
-
-type MaybeReadonly<T> = T | Readonly<T>;
 
 export function entries<
 	K extends string,

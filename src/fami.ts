@@ -12,9 +12,7 @@ import {
 	VALID_SAME_SITE_VALUES,
 } from "./helpers";
 import { parse as parseRaw, serialize as serializeRaw } from "./parser";
-import type { CookieAttributes, CookieValue } from "./types";
-
-export type MaybePromise<T> = T | Promise<T>;
+import type { CookieAttributes, CookieValue, MaybePromise } from "./types";
 
 /**
  * Fami cookies object. Can be used to access parsed cookie values with correct types, including promise types for secret cookies.
@@ -59,10 +57,22 @@ export type CookieDefinition<_ extends string> = Partial<{
 }> &
 	Omit<CookieAttributes, "expires">;
 
+/**
+ * A mapping of cookie names to their definitions, used as the input to the {@link Fami} constructor.
+ *
+ * Each key is a cookie name and each value is a {@link CookieDefinition} specifying
+ * default attributes (e.g. `httpOnly`, `secure`, `sameSite`, `expires`, `secret`) for that cookie.
+ */
 export type FamiInput<Name extends string> = {
 	readonly [K in Name]: CookieDefinition<K>;
 };
 
+/**
+ * Conditionally wraps `Return` in a `Promise` when the cookie definition for `Name` includes a `secret`.
+ *
+ * Cookies signed with a secret require async crypto operations, so their
+ * return types are promises. Unsigned cookies resolve synchronously.
+ */
 export type PromiseIfSecret<
 	Name extends string,
 	Def extends FamiInput<Name>,
