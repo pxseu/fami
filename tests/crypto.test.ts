@@ -84,12 +84,18 @@ describe("crypto", () => {
 			expect(await verifyPipeline("secret-b", signed)).toBe(false);
 		});
 
+		test("doesnt throw on invalid b64 segments", async () => {
+			const verified = await verifyPipeline("test-secret", "invalid.XDDDDDD");
+
+			expect(verified).toBe(false);
+		});
+
 		test("handles discord-like token payloads with multiple base64url segments", async () => {
 			const discordLikeToken = "MTc1OTI4ODQ3Mjk5MTE3MDYz.Dc9r_A";
 
 			const signed = await signPipeline("discord-secret", discordLikeToken);
 
-			expect(signed.split(".")).toHaveLength(4);
+			expect(signed.split(".")).toHaveLength(3);
 			expect(await verifyPipeline("discord-secret", signed)).toBe(
 				discordLikeToken,
 			);

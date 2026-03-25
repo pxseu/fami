@@ -2,6 +2,33 @@ const SEPARATOR = ".";
 const ENCODING = "base64url";
 const ALGORITHM = { name: "HMAC", hash: "SHA-256" } as const;
 
+function pad64(str: string): string {
+	if (str.length % 4 === 0) {
+		return str;
+	}
+
+	return `${str}${"=".repeat(4 - (str.length % 4))}`;
+}
+
+function to64Url(bytes: ArrayBuffer): string {
+	return new Uint8Array(bytes).toBase64({
+		alphabet: ENCODING,
+		// not a fan of it
+		omitPadding: true,
+	});
+}
+
+function from64url(str: string): Uint8Array<ArrayBuffer> | false {
+	try {
+		return Uint8Array.fromBase64(pad64(str), {
+			alphabet: ENCODING,
+			lastChunkHandling: "strict",
+		});
+	} catch (_) {
+		return false;
+	}
+}
+
 export function importKey(key: string | CryptoKey): Promise<CryptoKey> {
 	if (key instanceof CryptoKey) {
 		return Promise.resolve(key);
@@ -26,11 +53,7 @@ export async function signValue(
 		new TextEncoder().encode(value),
 	);
 
-	const sig = new Uint8Array(digest).toBase64({
-		alphabet: ENCODING,
-	});
-
-	return `${value}${SEPARATOR}${sig}`;
+	return `${value}${SEPARATOR}${to64Url(digest)}`;
 }
 
 export async function signPipeline(
@@ -62,9 +85,11 @@ export async function verifyValue(
 	const value = signedValue.slice(0, lastDotIndex);
 	const sig = signedValue.slice(lastDotIndex + 1);
 
-	const bytes = Uint8Array.fromBase64(sig, {
-		alphabet: ENCODING,
-	});
+	const bytes = from64url(sig);
+
+	if (!bytes) {
+		return false;
+	}
 
 	const valid = await crypto.subtle.verify(
 		ALGORITHM,

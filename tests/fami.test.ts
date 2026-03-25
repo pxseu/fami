@@ -541,6 +541,108 @@ describe("Fami", () => {
 		});
 	});
 
+	describe("works with signed cookies", () => {
+		test("serialize returns a promise for signed cookies", async () => {
+			const fami = new Fami({
+				session: {
+					httpOnly: true,
+					secure: true,
+					sameSite: "strict",
+					secret: "super-secret",
+				},
+				tracking: {},
+			});
+
+			const session = fami.serialize("session", "abc123");
+			const tracking = fami.serialize("tracking", "value");
+
+			expect(session).toBeInstanceOf(Promise);
+			expect(tracking).not.toBeInstanceOf(Promise);
+
+			const s_header = await session;
+			const t_header = tracking;
+
+			expect(s_header).toContain("session=abc123.");
+			expect(s_header).toContain("HttpOnly");
+			expect(t_header).toContain("Secure");
+			expect(s_header).toContain("SameSite=Strict");
+
+			expect(t_header).toEqual("tracking=value");
+		});
+
+		test("delete returns a promise for signed cookies", async () => {
+			const fami = new Fami({
+				session: {
+					httpOnly: true,
+					secure: true,
+					sameSite: "strict",
+					secret: "super-secret",
+				},
+				tracking: {},
+			});
+
+			const session = fami.delete("session");
+			const tracking = fami.delete("tracking");
+
+			expect(session).toBeInstanceOf(Promise);
+			expect(tracking).not.toBeInstanceOf(Promise);
+
+			const s_header = await session;
+			const t_header = tracking;
+
+			expect(s_header).toContain("session=");
+			expect(s_header).toContain("Max-Age=0");
+			expect(t_header).toContain("tracking=");
+			expect(t_header).toContain("Max-Age=0");
+		});
+
+		test("parse returns a promise for signed cookies", async () => {
+			const fami = new Fami({
+				session: {
+					httpOnly: true,
+					secure: true,
+					sameSite: "strict",
+					secret: "super-secret",
+				},
+				tracking: {},
+			});
+
+			const cookies = fami.parse(
+				"session=abc123.BQMG5r8LnjayZExNmMxnQ0rkwWy0_TTsAoqCu84uX7A; tracking=xyz789",
+			);
+
+			expect(cookies.session).toBeInstanceOf(Promise);
+			expect(cookies.tracking).not.toBeInstanceOf(Promise);
+
+			const session = await cookies.session;
+			const tracking = cookies.tracking;
+
+			expect(session).toBe("abc123");
+			expect(tracking).toBe("xyz789");
+		});
+
+		test("parse returns false for tampered signed cookies", async () => {
+			const fami = new Fami({
+				session: {
+					httpOnly: true,
+					secure: true,
+					sameSite: "strict",
+					secret: "super-secret",
+				},
+			});
+
+			const cookies = fami.parse(
+				"session=abc123.BQMG5r8LnjayZExNmmxnQ0rkwWy0_TTsAoqCu84uX7A",
+			);
+
+			expect(cookies.session).toBeInstanceOf(Promise);
+
+			const result = await cookies.session;
+
+			expect(result).toBe(undefined);
+		});
+	});
+
 	describe("InferCookieNames type", () => {
 		test("correctly infers cookie names from object", () => {
 			const fami = new Fami({
