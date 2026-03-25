@@ -316,3 +316,5 @@ export class Fami<
  */
 export type InferCookieNames<T> =
 	T extends Fami<infer Names, infer _Defs> ? Names : never;
+
+// Thank You, Chainsaw Man!
