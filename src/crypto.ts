@@ -3,11 +3,13 @@ const ENCODING = "base64url";
 const ALGORITHM = { name: "HMAC", hash: "SHA-256" } as const;
 
 function pad64(str: string): string {
-	if (str.length % 4 === 0) {
+	const mod = str.length % 4;
+
+	if (mod === 0) {
 		return str;
 	}
 
-	return `${str}${"=".repeat(4 - (str.length % 4))}`;
+	return str.padEnd(str.length + 4 - mod, "=");
 }
 
 function to64Url(bytes: ArrayBuffer): string {

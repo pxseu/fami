@@ -90,6 +90,15 @@ describe("crypto", () => {
 			expect(verified).toBe(false);
 		});
 
+		test("works with signature being padded base64url", async () => {
+			const paddedSigned =
+				"hello-world.LWzce8F2WlVrCK7pObyK9S3WFXnTFdflha6H1S1KAHA=";
+
+			expect(await verifyPipeline("super-secret", paddedSigned)).toBe(
+				"hello-world",
+			);
+		});
+
 		test("handles discord-like token payloads with multiple base64url segments", async () => {
 			const discordLikeToken = "MTc1OTI4ODQ3Mjk5MTE3MDYz.Dc9r_A";
 
