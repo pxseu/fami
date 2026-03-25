@@ -347,6 +347,39 @@ describe("express - createFami", () => {
 	});
 
 	describe("writeHead flush", () => {
+		test("flushes signed cookie headers asynchronously on writeHead", async () => {
+			const fami = createFami({
+				session: {
+					httpOnly: true,
+					secret: "super-secret",
+				},
+				tracking: {},
+			});
+			const mock = mockRes();
+			const { res } = applyMiddleware(fami, mockReq(), mock);
+
+			res.setCookie("session", "signed_value");
+			res.setCookie("tracking", "plain_value");
+
+			const writeResult = res.writeHead(201);
+
+			expect(writeResult).toBeInstanceOf(Promise);
+			await writeResult;
+
+			const setCookieHeaders = mock.getAppendedHeaders("Set-Cookie");
+			expect(setCookieHeaders).toHaveLength(2);
+			const sessionHeader = setCookieHeaders.find((header) =>
+				header.startsWith("session="),
+			);
+			const trackingHeader = setCookieHeaders.find((header) =>
+				header.startsWith("tracking="),
+			);
+
+			expect(sessionHeader).toContain("session=signed_value.");
+			expect(sessionHeader).toContain("HttpOnly");
+			expect(trackingHeader).toContain("tracking=plain_value");
+		});
+
 		test("flushes jar to Set-Cookie headers on writeHead", () => {
 			const fami = createFami({ session: {}, tracking: {} });
 			const mock = mockRes();

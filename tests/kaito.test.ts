@@ -12,8 +12,11 @@ function mockHead() {
 	return { headers: new Headers() };
 }
 
-function applyContext<CookieName extends string>(
-	wrapper: ReturnType<typeof createFami<CookieName, FamiInput<CookieName>>>,
+function applyContext<
+	CookieName extends string,
+	Defs extends FamiInput<CookieName>,
+>(
+	wrapper: ReturnType<typeof createFami<CookieName, Defs>>,
 	req = mockReq(),
 	head = mockHead(),
 ) {
@@ -197,6 +200,25 @@ describe("kaito - createFami", () => {
 	});
 
 	describe("setCookie method", () => {
+		test("returns a promise for signed cookies", async () => {
+			const wrapper = createFami({
+				session: {
+					httpOnly: true,
+					secret: "super-secret",
+				},
+			});
+			const { context, head } = applyContext(wrapper);
+
+			const result = context.setCookie("session", "new_value");
+
+			expect(result).toBeInstanceOf(Promise);
+			await result;
+
+			const setCookieHeader = head.headers.get("Set-Cookie");
+			expect(setCookieHeader).toContain("session=new_value.");
+			expect(setCookieHeader).toContain("HttpOnly");
+		});
+
 		test("appends Set-Cookie header to response", () => {
 			const wrapper = createFami({ session: {} });
 			const { context, head } = applyContext(wrapper);
@@ -236,6 +258,26 @@ describe("kaito - createFami", () => {
 	});
 
 	describe("deleteCookie method", () => {
+		test("returns a promise for signed cookie deletions", async () => {
+			const wrapper = createFami({
+				session: {
+					path: "/",
+					secret: "super-secret",
+				},
+			});
+			const { context, head } = applyContext(wrapper);
+
+			const result = context.deleteCookie("session");
+
+			expect(result).toBeInstanceOf(Promise);
+			await result;
+
+			const setCookieHeader = head.headers.get("Set-Cookie");
+			expect(setCookieHeader).toContain("session=");
+			expect(setCookieHeader).toContain("Max-Age=0");
+			expect(setCookieHeader).toContain("Path=/");
+		});
+
 		test("appends deletion header to response", () => {
 			const wrapper = createFami({ session: {} });
 			const { context, head } = applyContext(wrapper);

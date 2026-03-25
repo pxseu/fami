@@ -60,6 +60,12 @@ describe("crypto", () => {
 	});
 
 	describe("signPipeline and verifyPipeline", () => {
+		// themes and such 
+		test("returns false when signed value is missing", async () => {
+			expect(await verifyPipeline("pipeline-secret")).toBe(false);
+			expect(await verifyPipeline("pipeline-secret", "")).toBe(false);
+		});
+
 		test("supports string, CryptoKey, and Promise<CryptoKey> inputs", async () => {
 			const value = "pipeline-value";
 			const cryptoKey = await importKey("pipeline-secret");
