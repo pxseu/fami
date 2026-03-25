@@ -21,6 +21,9 @@
       ],
     },
   },
+  "patchedDependencies": {
+    "tsup@8.5.1": "patches/tsup@8.5.1.patch",
+  },
   "packages": {
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.27.0", "", { "os": "aix", "cpu": "ppc64" }, "sha512-KuZrd2hRjz01y5JK9mEBSD3Vj3mbCvemhT466rSuJYeE/hjuBrHfjjcjMdTm/sz7au+++sdbJZJmuBwQLuw68A=="],
 
