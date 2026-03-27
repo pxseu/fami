@@ -60,7 +60,7 @@ describe("crypto", () => {
 	});
 
 	describe("signPipeline and verifyPipeline", () => {
-		// themes and such 
+		// themes and such
 		test("returns false when signed value is missing", async () => {
 			expect(await verifyPipeline("pipeline-secret")).toBe(false);
 			expect(await verifyPipeline("pipeline-secret", "")).toBe(false);

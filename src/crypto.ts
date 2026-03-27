@@ -1,11 +1,14 @@
 const SEPARATOR = ".";
 const ENCODING = "base64url";
 const ALGORITHM = { name: "HMAC", hash: "SHA-256" } as const;
+const USAGES = ["sign", "verify"] as const;
+
+const encoder = new TextEncoder();
 
 function pad64(str: string): string {
 	const mod = str.length % 4;
 
-	if (mod === 0) {
+	if (!mod) {
 		return str;
 	}
 
@@ -31,17 +34,23 @@ function from64url(str: string): Uint8Array<ArrayBuffer> | false {
 	}
 }
 
-export function importKey(key: string | CryptoKey): Promise<CryptoKey> {
+export function importKey(
+	key: string | CryptoKey | Promise<CryptoKey>,
+): Promise<CryptoKey> {
+	if (key instanceof Promise) {
+		return key;
+	}
+
 	if (key instanceof CryptoKey) {
 		return Promise.resolve(key);
 	}
 
 	return crypto.subtle.importKey(
 		"raw",
-		new TextEncoder().encode(key),
+		encoder.encode(key),
 		ALGORITHM,
 		false,
-		["sign", "verify"],
+		USAGES,
 	);
 }
 
@@ -52,7 +61,7 @@ export async function signValue(
 	const digest = await crypto.subtle.sign(
 		ALGORITHM,
 		key,
-		new TextEncoder().encode(value),
+		encoder.encode(value),
 	);
 
 	return `${value}${SEPARATOR}${to64Url(digest)}`;
@@ -62,15 +71,9 @@ export async function signPipeline(
 	key: string | CryptoKey | Promise<CryptoKey>,
 	value: string,
 ) {
-	let crypto_key: CryptoKey;
+	if (!value) return value;
 
-	if (key instanceof Promise) {
-		crypto_key = await key;
-	} else if (key instanceof CryptoKey) {
-		crypto_key = key;
-	} else {
-		crypto_key = await importKey(key);
-	}
+	const crypto_key = await importKey(key);
 
 	return await signValue(crypto_key, value);
 }
@@ -97,7 +100,7 @@ export async function verifyValue(
 		ALGORITHM,
 		key,
 		bytes,
-		new TextEncoder().encode(value),
+		encoder.encode(value),
 	);
 
 	return valid ? value : false;
@@ -108,18 +111,10 @@ export async function verifyPipeline(
 	signedValue?: string,
 ) {
 	if (!signedValue) {
-		return Promise.resolve(false as const);
+		return false;
 	}
 
-	let crypto_key: CryptoKey;
-
-	if (key instanceof Promise) {
-		crypto_key = await key;
-	} else if (key instanceof CryptoKey) {
-		crypto_key = key;
-	} else {
-		crypto_key = await importKey(key);
-	}
+	const crypto_key = await importKey(key);
 
 	return await verifyValue(crypto_key, signedValue);
 }

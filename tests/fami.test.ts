@@ -124,7 +124,7 @@ describe("Fami", () => {
 
 			const result = fami.delete("session");
 
-			expect(result).toContain("session=");
+			expect(result).toStartWith("session=;");
 			expect(result).toContain("Max-Age=0");
 			expect(result).toContain("Expires=Thu, 01 Jan 1970 00:00:00 GMT");
 			expect(result).toContain("Path=/");
@@ -442,7 +442,7 @@ describe("Fami", () => {
 
 			const result = fami.delete("session");
 
-			expect(result).toContain("session=");
+			expect(result).toStartWith("session=;");
 			expect(result).toContain("Max-Age=0");
 			expect(result).toContain("Expires=Thu, 01 Jan 1970 00:00:00 GMT");
 		});
@@ -590,9 +590,9 @@ describe("Fami", () => {
 			const s_header = await session;
 			const t_header = tracking;
 
-			expect(s_header).toContain("session=");
+			expect(s_header).toStartWith("session=;");
 			expect(s_header).toContain("Max-Age=0");
-			expect(t_header).toContain("tracking=");
+			expect(t_header).toStartWith("tracking=;");
 			expect(t_header).toContain("Max-Age=0");
 		});
 
