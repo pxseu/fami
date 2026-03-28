@@ -215,8 +215,8 @@ describe("kaito - createFami", () => {
 			await result;
 
 			const setCookieHeader = head.headers.get("Set-Cookie");
-			expect(setCookieHeader).toContain("session=new_value.");
-			expect(setCookieHeader).toContain("HttpOnly");
+			expect(setCookieHeader).toStartWith("session=new_value.");
+			expect(setCookieHeader).toContain("; HttpOnly");
 		});
 
 		test("appends Set-Cookie header to response", () => {
@@ -225,7 +225,7 @@ describe("kaito - createFami", () => {
 
 			context.setCookie("session", "new_value");
 
-			expect(head.headers.get("Set-Cookie")).toContain("session=new_value");
+			expect(head.headers.get("Set-Cookie")).toBe("session=new_value");
 		});
 
 		test("delegates to fami.serialize with arguments", () => {
@@ -238,7 +238,7 @@ describe("kaito - createFami", () => {
 			});
 
 			const setCookieHeader = head.headers.get("Set-Cookie");
-			expect(setCookieHeader).toContain("session=value");
+			expect(setCookieHeader).toStartWith("session=value;");
 			expect(setCookieHeader).toContain("Path=/");
 			expect(setCookieHeader).toContain("Max-Age=3600");
 		});
@@ -252,8 +252,8 @@ describe("kaito - createFami", () => {
 
 			const setCookieHeaders = head.headers.getSetCookie();
 			expect(setCookieHeaders).toHaveLength(2);
-			expect(setCookieHeaders[0]).toContain("session=session_value");
-			expect(setCookieHeaders[1]).toContain("tracking=tracking_value");
+			expect(setCookieHeaders[0]).toBe("session=session_value");
+			expect(setCookieHeaders[1]).toBe("tracking=tracking_value");
 		});
 	});
 
@@ -273,7 +273,7 @@ describe("kaito - createFami", () => {
 			await result;
 
 			const setCookieHeader = head.headers.get("Set-Cookie");
-			expect(setCookieHeader).toContain("session=");
+			expect(setCookieHeader).toStartWith("session=;");
 			expect(setCookieHeader).toContain("Max-Age=0");
 			expect(setCookieHeader).toContain("Path=/");
 		});
@@ -285,7 +285,7 @@ describe("kaito - createFami", () => {
 			context.deleteCookie("session");
 
 			const setCookieHeader = head.headers.get("Set-Cookie");
-			expect(setCookieHeader).toContain("session=");
+			expect(setCookieHeader).toStartWith("session=;");
 			expect(setCookieHeader).toContain("Max-Age=0");
 		});
 
@@ -301,6 +301,7 @@ describe("kaito - createFami", () => {
 			context.deleteCookie("session");
 
 			const setCookieHeader = head.headers.get("Set-Cookie");
+			expect(setCookieHeader).toStartWith("session=;");
 			// Verify it includes default attributes from definition
 			expect(setCookieHeader).toContain("Path=/");
 			expect(setCookieHeader).toContain("Domain=example.com");
@@ -343,6 +344,21 @@ describe("kaito - createFami", () => {
 			// Verify headers appended
 			const setCookieHeaders = head.headers.getSetCookie();
 			expect(setCookieHeaders).toHaveLength(3);
+
+			const sessionHeader = setCookieHeaders.find((header) =>
+				header.startsWith("session="),
+			);
+			const preferencesHeader = setCookieHeaders.find((header) =>
+				header.startsWith("preferences="),
+			);
+			const trackingHeader = setCookieHeaders.find((header) =>
+				header.startsWith("tracking="),
+			);
+
+			expect(sessionHeader).toBe("session=new_session");
+			expect(preferencesHeader).toBe("preferences=pref_value");
+			expect(trackingHeader).toStartWith("tracking=;");
+			expect(trackingHeader).toContain("Max-Age=0");
 		});
 
 		test("works with empty cookie definitions", () => {
@@ -376,20 +392,20 @@ describe("kaito - createFami", () => {
 			expect(context.cookies).toEqual({ session: undefined });
 			expect(context.setCookie).toBeFunction();
 		});
-	});
 
-	test("works with kaito null context and undefined context", () => {
-		const wrapper = createFami({ session: {} });
+		test("works with kaito null context and undefined context", () => {
+			const wrapper = createFami({ session: {} });
 
-		const req = mockReq();
-		const head = mockHead();
+			const req = mockReq();
+			const head = mockHead();
 
-		const contextWithNull = wrapper(null, {}, req, head);
-		expect(contextWithNull.fami).toBeDefined();
-		expect(contextWithNull.cookies).toEqual({ session: undefined });
+			const contextWithNull = wrapper(null, {}, req, head);
+			expect(contextWithNull.fami).toBeDefined();
+			expect(contextWithNull.cookies).toEqual({ session: undefined });
 
-		const contextWithUndefined = wrapper(undefined, {}, req, head);
-		expect(contextWithUndefined.fami).toBeDefined();
-		expect(contextWithUndefined.cookies).toEqual({ session: undefined });
+			const contextWithUndefined = wrapper(undefined, {}, req, head);
+			expect(contextWithUndefined.fami).toBeDefined();
+			expect(contextWithUndefined.cookies).toEqual({ session: undefined });
+		});
 	});
 });

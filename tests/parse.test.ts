@@ -219,18 +219,38 @@ describe("parse", () => {
 	});
 
 	describe("real-world scenarios", () => {
-		test("handles real-world cookie headers", () => {
-			const realWorldHeaders = [
+		test("parses session and CSRF style headers", () => {
+			const result = parse(
 				"sessionid=abc123; csrftoken=def456; user_pref=dark_mode",
+			);
+
+			expect(result).toEqual({
+				sessionid: "abc123",
+				csrftoken: "def456",
+				user_pref: "dark_mode",
+			});
+		});
+
+		test("parses analytics cookies with dotted values", () => {
+			const result = parse(
 				"_ga=GA1.2.123456789.1234567890; _gid=GA1.2.987654321.0987654321",
+			);
+
+			expect(result).toEqual({
+				_ga: "GA1.2.123456789.1234567890",
+				_gid: "GA1.2.987654321.0987654321",
+			});
+		});
+
+		test("parses token-like cookie values", () => {
+			const result = parse(
 				"session=eyJhbGciOiJIUzI1NiJ9; auth=bearer_token_here",
-			];
+			);
 
-			for (const header of realWorldHeaders) {
-				const result = parse(header);
-
-				expect(Object.keys(result).length).toBeGreaterThan(0);
-			}
+			expect(result).toEqual({
+				session: "eyJhbGciOiJIUzI1NiJ9",
+				auth: "bearer_token_here",
+			});
 		});
 	});
 

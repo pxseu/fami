@@ -219,7 +219,7 @@ describe("express - createFami", () => {
 			res.setCookie("session", "new_value");
 
 			expect(res.cookieJar.size).toBe(1);
-			expect(res.cookieJar.get("session")).toContain("session=new_value");
+			expect(res.cookieJar.get("session")).toBe("session=new_value");
 		});
 
 		test("serializes with attributes", () => {
@@ -233,7 +233,7 @@ describe("express - createFami", () => {
 			});
 
 			const header = res.cookieJar.get("session");
-			expect(header).toContain("session=value");
+			expect(header).toStartWith("session=value;");
 			expect(header).toContain("Path=/");
 			expect(header).toContain("Max-Age=3600");
 		});
@@ -248,7 +248,7 @@ describe("express - createFami", () => {
 			res.setCookie("session", "third");
 
 			expect(res.cookieJar.size).toBe(1);
-			expect(res.cookieJar.get("session")).toContain("session=third");
+			expect(res.cookieJar.get("session")).toBe("session=third");
 		});
 
 		test("stores multiple different cookies", () => {
@@ -260,10 +260,8 @@ describe("express - createFami", () => {
 			res.setCookie("tracking", "tracking_value");
 
 			expect(res.cookieJar.size).toBe(2);
-			expect(res.cookieJar.get("session")).toContain("session=session_value");
-			expect(res.cookieJar.get("tracking")).toContain(
-				"tracking=tracking_value",
-			);
+			expect(res.cookieJar.get("session")).toBe("session=session_value");
+			expect(res.cookieJar.get("tracking")).toBe("tracking=tracking_value");
 		});
 
 		test("uses default attributes from cookie definition", () => {
@@ -280,6 +278,7 @@ describe("express - createFami", () => {
 			res.setCookie("session", "value");
 
 			const header = res.cookieJar.get("session");
+			expect(header).toStartWith("session=value;");
 			expect(header).toContain("Path=/");
 			expect(header).toContain("HttpOnly");
 			expect(header).toContain("Secure");
@@ -296,7 +295,7 @@ describe("express - createFami", () => {
 
 			expect(res.cookieJar.size).toBe(1);
 			const header = res.cookieJar.get("session");
-			expect(header).toContain("session=");
+			expect(header).toStartWith("session=;");
 			expect(header).toContain("Max-Age=0");
 		});
 
@@ -313,6 +312,7 @@ describe("express - createFami", () => {
 			res.deleteCookie("session");
 
 			const header = res.cookieJar.get("session");
+			expect(header).toStartWith("session=;");
 			expect(header).toContain("Path=/");
 			expect(header).toContain("Domain=example.com");
 		});
@@ -327,6 +327,7 @@ describe("express - createFami", () => {
 
 			expect(res.cookieJar.size).toBe(1);
 			const header = res.cookieJar.get("session");
+			expect(header).toStartWith("session=;");
 			expect(header).toContain("Max-Age=0");
 			expect(header).not.toContain("session=some_value");
 		});
@@ -341,7 +342,7 @@ describe("express - createFami", () => {
 
 			expect(res.cookieJar.size).toBe(1);
 			const header = res.cookieJar.get("session");
-			expect(header).toContain("session=new_value");
+			expect(header).toBe("session=new_value");
 			expect(header).not.toContain("Max-Age=0");
 		});
 	});
@@ -375,9 +376,9 @@ describe("express - createFami", () => {
 				header.startsWith("tracking="),
 			);
 
-			expect(sessionHeader).toContain("session=signed_value.");
-			expect(sessionHeader).toContain("HttpOnly");
-			expect(trackingHeader).toContain("tracking=plain_value");
+			expect(sessionHeader).toStartWith("session=signed_value.");
+			expect(sessionHeader).toContain("; HttpOnly");
+			expect(trackingHeader).toBe("tracking=plain_value");
 		});
 
 		test("flushes jar to Set-Cookie headers on writeHead", () => {
@@ -393,8 +394,8 @@ describe("express - createFami", () => {
 
 			const setCookieHeaders = mock.getAppendedHeaders("Set-Cookie");
 			expect(setCookieHeaders).toHaveLength(2);
-			expect(setCookieHeaders[0]).toContain("session=session_value");
-			expect(setCookieHeaders[1]).toContain("tracking=tracking_value");
+			expect(setCookieHeaders[0]).toBe("session=session_value");
+			expect(setCookieHeaders[1]).toBe("tracking=tracking_value");
 		});
 
 		test("does not append headers before writeHead", () => {
@@ -455,7 +456,7 @@ describe("express - createFami", () => {
 
 			const setCookieHeaders = mock.getAppendedHeaders("Set-Cookie");
 			expect(setCookieHeaders).toHaveLength(1);
-			expect(setCookieHeaders[0]).toContain("session=third");
+			expect(setCookieHeaders[0]).toBe("session=third");
 		});
 	});
 
@@ -515,6 +516,21 @@ describe("express - createFami", () => {
 
 			const setCookieHeaders = mock.getAppendedHeaders("Set-Cookie");
 			expect(setCookieHeaders).toHaveLength(3);
+
+			const sessionHeader = setCookieHeaders.find((header) =>
+				header.startsWith("session="),
+			);
+			const preferencesHeader = setCookieHeaders.find((header) =>
+				header.startsWith("preferences="),
+			);
+			const trackingHeader = setCookieHeaders.find((header) =>
+				header.startsWith("tracking="),
+			);
+
+			expect(sessionHeader).toBe("session=new_session");
+			expect(preferencesHeader).toBe("preferences=pref_value");
+			expect(trackingHeader).toStartWith("tracking=;");
+			expect(trackingHeader).toContain("Max-Age=0");
 		});
 
 		test("works with empty cookie definitions", () => {
@@ -577,7 +593,7 @@ describe("express - createFami", () => {
 
 			const setCookieHeaders = mock.getAppendedHeaders("Set-Cookie");
 			expect(setCookieHeaders).toHaveLength(1);
-			expect(setCookieHeaders[0]).toContain("session=updated");
+			expect(setCookieHeaders[0]).toBe("session=updated");
 		});
 	});
 });

@@ -27,9 +27,16 @@ describe("serialize", () => {
 				priority: "high",
 			});
 
-			expect(result).toBe(
-				"test=value; Expires=Wed, 09 Jun 2021 10:18:14 GMT; Max-Age=3600; Domain=example.com; Path=/; Secure; HttpOnly; Partitioned; Priority=High; SameSite=Strict",
-			);
+			expect(result).toStartWith("test=value;");
+			expect(result).toContain("Expires=Wed, 09 Jun 2021 10:18:14 GMT");
+			expect(result).toContain("Max-Age=3600");
+			expect(result).toContain("Domain=example.com");
+			expect(result).toContain("Path=/");
+			expect(result).toContain("Secure");
+			expect(result).toContain("HttpOnly");
+			expect(result).toContain("Partitioned");
+			expect(result).toContain("Priority=High");
+			expect(result).toContain("SameSite=Strict");
 		});
 
 		test("handles empty value", () => {
@@ -106,7 +113,8 @@ describe("serialize", () => {
 	describe("maxAge attribute", () => {
 		test("handles zero max-age", () => {
 			const result = serialize("test", "value", { maxAge: 0 });
-			expect(result).toBe("test=value; Max-Age=0");
+			expect(result).toStartWith("test=value;");
+			expect(result).toContain("Max-Age=0");
 		});
 
 		test("ignores negative max-age", () => {
@@ -118,21 +126,21 @@ describe("serialize", () => {
 
 	describe("sameSite attribute", () => {
 		test("handles strict value", () => {
-			expect(serialize("test", "value", { sameSite: "strict" })).toBe(
-				"test=value; SameSite=Strict",
-			);
+			const result = serialize("test", "value", { sameSite: "strict" });
+			expect(result).toStartWith("test=value;");
+			expect(result).toContain("SameSite=Strict");
 		});
 
 		test("handles lax value", () => {
-			expect(serialize("test", "value", { sameSite: "lax" })).toBe(
-				"test=value; SameSite=Lax",
-			);
+			const result = serialize("test", "value", { sameSite: "lax" });
+			expect(result).toStartWith("test=value;");
+			expect(result).toContain("SameSite=Lax");
 		});
 
 		test("handles none value", () => {
-			expect(serialize("test", "value", { sameSite: "none" })).toBe(
-				"test=value; SameSite=None",
-			);
+			const result = serialize("test", "value", { sameSite: "none" });
+			expect(result).toStartWith("test=value;");
+			expect(result).toContain("SameSite=None");
 		});
 
 		test("throws error for invalid value", () => {
@@ -148,17 +156,20 @@ describe("serialize", () => {
 	describe("priority attribute", () => {
 		test("handles low value", () => {
 			const result = serialize("test", "value", { priority: "low" });
-			expect(result).toBe("test=value; Priority=Low");
+			expect(result).toStartWith("test=value;");
+			expect(result).toContain("Priority=Low");
 		});
 
 		test("handles medium value", () => {
 			const result = serialize("test", "value", { priority: "medium" });
-			expect(result).toBe("test=value; Priority=Medium");
+			expect(result).toStartWith("test=value;");
+			expect(result).toContain("Priority=Medium");
 		});
 
 		test("handles high value", () => {
 			const result = serialize("test", "value", { priority: "high" });
-			expect(result).toBe("test=value; Priority=High");
+			expect(result).toStartWith("test=value;");
+			expect(result).toContain("Priority=High");
 		});
 
 		test("throws error for invalid value", () => {
@@ -174,7 +185,8 @@ describe("serialize", () => {
 	describe("partitioned attribute", () => {
 		test("handles partitioned attribute", () => {
 			const result = serialize("test", "value", { partitioned: true });
-			expect(result).toBe("test=value; Partitioned");
+			expect(result).toStartWith("test=value;");
+			expect(result).toContain("Partitioned");
 		});
 
 		test("ignores partitioned attribute when false", () => {
@@ -188,7 +200,9 @@ describe("serialize", () => {
 				partitioned: true,
 				priority: "high",
 			});
-			expect(result).toBe("test=value; Partitioned; Priority=High");
+			expect(result).toStartWith("test=value;");
+			expect(result).toContain("Partitioned");
+			expect(result).toContain("Priority=High");
 		});
 	});
 

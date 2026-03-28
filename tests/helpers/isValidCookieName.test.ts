@@ -17,6 +17,10 @@ describe("isValidCookieName", () => {
 			expect(isValidCookieName("test cookie")).toBe(false);
 		});
 
+		test("returns false for names with colons", () => {
+			expect(isValidCookieName("test:cookie")).toBe(false);
+		});
+
 		test("returns false for names with semicolons", () => {
 			expect(isValidCookieName("test;cookie")).toBe(false);
 		});
