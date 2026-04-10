@@ -1,5 +1,5 @@
 import { Fami, type FamiInput, type PromiseIfSecret } from "./fami";
-import type { CookieAttributes, CookieValue, MaybePromise } from "./types";
+import type { CookieAttributes, CookieValue } from "./types";
 
 type NoOverlap<T, U> = {
 	[K in keyof T & keyof U]: never;
@@ -36,24 +36,29 @@ export interface FamiContext<
 	): PromiseIfSecret<Name, Defs, void>;
 }
 
-export interface FamiPipeContext<
+export type FamiPipeInput<
+	C,
 	Names extends string,
 	Defs extends FamiInput<Names>,
-> {
-	<C, P>(
-		context: NoOverlap<C, FamiContext<Names, Defs>> & C,
-		params: P,
-		req: KaitoRequestStub,
-		head: KaitoHeadStub,
-	): C & FamiContext<Names, Defs>;
+> = C extends null | undefined ? C : NoOverlap<C, FamiContext<Names, Defs>> & C;
 
-	<C, P>(
-		context: C extends null | undefined ? C : never,
-		params: P,
-		req: KaitoRequestStub,
-		head: KaitoHeadStub,
-	): FamiContext<Names, Defs>;
-}
+export type FamiPipeOutput<
+	C,
+	Names extends string,
+	Defs extends FamiInput<Names>,
+> = C extends null | undefined
+	? FamiContext<Names, Defs>
+	: C & FamiContext<Names, Defs>;
+
+export type FamiPipeContext<
+	Names extends string,
+	Defs extends FamiInput<Names>,
+> = <C, P>(
+	context: FamiPipeInput<C, Names, Defs>,
+	params: P,
+	req: KaitoRequestStub,
+	head: KaitoHeadStub,
+) => FamiPipeOutput<C, Names, Defs>;
 
 /**
  * Creates a Kaito context wrapper that includes the Fami instance and cookie management methods.
@@ -91,11 +96,11 @@ export function fami<
 	const f = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 
 	return <C, P>(
-		context: NoOverlap<C, FamiContext<CookieName, Defs>> & C,
+		context: FamiPipeInput<C, CookieName, Defs>,
 		_params: P,
 		req: KaitoRequestStub,
 		head: KaitoHeadStub,
-	): C & FamiContext<CookieName, Defs> => {
+	): FamiPipeOutput<C, CookieName, Defs> => {
 		// i know this looks so ugly but for now it's the only way to have proper typings for setCookie and deleteCookie
 		function setCookie<Name extends CookieName>(
 			...args: Parameters<Fami<Name, Defs>["serialize"]>
@@ -104,7 +109,7 @@ export function fami<
 			name: CookieName,
 			value: CookieValue,
 			attributes?: CookieAttributes,
-		): MaybePromise<void> {
+		) {
 			const header = f.serialize(name, value, attributes);
 
 			if (header instanceof Promise) {
@@ -113,13 +118,13 @@ export function fami<
 				});
 			}
 
-			head.headers.append("Set-Cookie", header);
+			return head.headers.append("Set-Cookie", header);
 		}
 
 		function deleteCookie<Name extends CookieName>(
 			...args: Parameters<Fami<Name, Defs>["delete"]>
 		): PromiseIfSecret<Name, Defs, void>;
-		function deleteCookie(name: CookieName): MaybePromise<void> {
+		function deleteCookie(name: CookieName) {
 			const header = f.delete(name);
 
 			if (header instanceof Promise) {
@@ -128,29 +133,36 @@ export function fami<
 				});
 			}
 
-			head.headers.append("Set-Cookie", header);
+			return head.headers.append("Set-Cookie", header);
 		}
 
-		return {
-			...(context ?? {}),
-			get fami() {
-				return f;
-			},
-			get cookies() {
-				const cookies = Object.freeze(f.parse(req.headers.get("Cookie")));
+		function buildContext<C>(
+			input: FamiPipeInput<C, CookieName, Defs>,
+		): FamiPipeOutput<C, CookieName, Defs>;
+		function buildContext(input: object | null | undefined) {
+			return {
+				...(input ?? {}),
+				get fami() {
+					return f;
+				},
+				get cookies() {
+					const cookies = Object.freeze(f.parse(req.headers.get("Cookie")));
 
-				Object.defineProperties(this, {
-					cookies: {
-						value: cookies,
-						enumerable: true,
-						configurable: true,
-					},
-				});
+					Object.defineProperties(this, {
+						cookies: {
+							value: cookies,
+							enumerable: true,
+							configurable: true,
+						},
+					});
 
-				return cookies;
-			},
-			setCookie,
-			deleteCookie,
-		};
+					return cookies;
+				},
+				setCookie,
+				deleteCookie,
+			};
+		}
+
+		return buildContext(context);
 	};
 }
