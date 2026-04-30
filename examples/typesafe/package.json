@@ -1,9 +1,9 @@
 {
 	"devDependencies": {
-		"@types/bun": "1.3.11",
-		"typescript": "^6.0.2"
+		"@types/bun": "1.3.13",
+		"typescript": "^6.0.3"
 	},
 	"dependencies": {
-		"fami": "^2.0.3"
+		"fami": "^2.0.4"
 	}
 }
