@@ -283,6 +283,28 @@ describe("express - createFami", () => {
 			expect(header).toContain("HttpOnly");
 			expect(header).toContain("Secure");
 		});
+
+		test("keeps latest header when earlier signed operation resolves late", async () => {
+			const fami = createFami({
+				session: {
+					secret: "super-secret",
+				},
+			});
+			const mock = mockRes();
+			const { res } = applyMiddleware(fami, mockReq(), mock);
+
+			const pendingSigned = res.setCookie("session", "signed_value");
+			const pendingDelete = res.deleteCookie("session");
+
+			expect(pendingSigned).toBeInstanceOf(Promise);
+			expect(pendingDelete).toBeInstanceOf(Promise);
+			await pendingSigned;
+			await pendingDelete;
+
+			const header = res.cookieJar.get("session");
+			expect(header).toStartWith("session=;");
+			expect(header).toContain("Max-Age=0");
+		});
 	});
 
 	describe("cookie jar - deleteCookie", () => {
@@ -348,7 +370,7 @@ describe("express - createFami", () => {
 	});
 
 	describe("writeHead flush", () => {
-		test("flushes signed cookie headers asynchronously on writeHead", async () => {
+		test("flushes signed cookie headers when signing is awaited", async () => {
 			const fami = createFami({
 				session: {
 					httpOnly: true,
@@ -359,13 +381,15 @@ describe("express - createFami", () => {
 			const mock = mockRes();
 			const { res } = applyMiddleware(fami, mockReq(), mock);
 
-			res.setCookie("session", "signed_value");
+			const pendingSession = res.setCookie("session", "signed_value");
 			res.setCookie("tracking", "plain_value");
+
+			expect(pendingSession).toBeInstanceOf(Promise);
+			await pendingSession;
 
 			const writeResult = res.writeHead(201);
 
-			expect(writeResult).toBeInstanceOf(Promise);
-			await writeResult;
+			expect(writeResult).toBeUndefined();
 
 			const setCookieHeaders = mock.getAppendedHeaders("Set-Cookie");
 			expect(setCookieHeaders).toHaveLength(2);
@@ -379,6 +403,47 @@ describe("express - createFami", () => {
 			expect(sessionHeader).toStartWith("session=signed_value.");
 			expect(sessionHeader).toContain("; HttpOnly");
 			expect(trackingHeader).toBe("tracking=plain_value");
+		});
+
+		test("throws when signed cookie is still pending", async () => {
+			const fami = createFami({
+				session: {
+					secret: "super-secret",
+				},
+			});
+			const mock = mockRes();
+			const { res } = applyMiddleware(fami, mockReq(), mock);
+
+			const pendingSession = res.setCookie("session", "signed_value");
+
+			expect(pendingSession).toBeInstanceOf(Promise);
+			expect(() => res.writeHead(200)).toThrow("Signed cookies still pending");
+
+			await pendingSession;
+		});
+
+		test("does not keep pending state after signed cookie rejection", async () => {
+			const famiInstance = new Fami({
+				session: {
+					secret: "super-secret",
+				},
+			});
+			const serializeSpy = vi
+				.spyOn(famiInstance, "serialize")
+				.mockReturnValue(Promise.reject(new Error("signing failed")));
+
+			const fami = createFami(famiInstance);
+			const mock = mockRes();
+			const { res } = applyMiddleware(fami, mockReq(), mock);
+
+			const pendingSession = res.setCookie("session", "signed_value");
+			expect(pendingSession).toBeInstanceOf(Promise);
+			await expect(pendingSession).rejects.toThrow("signing failed");
+
+			expect(() => res.writeHead(200)).not.toThrow();
+			expect(mock.getAppendedHeaders("Set-Cookie")).toHaveLength(0);
+
+			serializeSpy.mockRestore();
 		});
 
 		test("flushes jar to Set-Cookie headers on writeHead", () => {
@@ -396,6 +461,21 @@ describe("express - createFami", () => {
 			expect(setCookieHeaders).toHaveLength(2);
 			expect(setCookieHeaders[0]).toBe("session=session_value");
 			expect(setCookieHeaders[1]).toBe("tracking=tracking_value");
+		});
+
+		test("does not append duplicate headers on repeated writeHead calls", () => {
+			const fami = createFami({ session: {} });
+			const mock = mockRes();
+			const { res } = applyMiddleware(fami, mockReq(), mock);
+
+			res.setCookie("session", "value");
+
+			res.writeHead(200);
+			res.writeHead(200);
+
+			const setCookieHeaders = mock.getAppendedHeaders("Set-Cookie");
+			expect(setCookieHeaders).toHaveLength(1);
+			expect(setCookieHeaders[0]).toBe("session=value");
 		});
 
 		test("does not append headers before writeHead", () => {

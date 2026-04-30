@@ -336,9 +336,29 @@ describe("Fami", () => {
 			const fami = new Fami({ session: {} });
 
 			expect(Object.isFrozen(fami.cookies)).toBe(true);
+			expect(Object.isFrozen(fami.cookies.session)).toBe(true);
 			expect(() => {
 				(fami.cookies as Record<string, unknown>).session = { secure: true };
 			}).toThrow();
+			expect(() => {
+				(fami.cookies.session as { path?: string }).path = "/";
+			}).toThrow();
+		});
+
+		test("copies definitions so input mutations do not change defaults", () => {
+			const definitions = {
+				session: {
+					path: "/",
+					httpOnly: true,
+				},
+			};
+			const fami = new Fami(definitions);
+
+			definitions.session.path = "/changed";
+
+			expect(fami.serialize("session", "value")).toBe(
+				"session=value; Path=/; HttpOnly",
+			);
 		});
 	});
 

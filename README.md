@@ -111,6 +111,16 @@ console.log(deleteSession);
 // "session=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
 ```
 
+### Signed cookies (async behavior)
+
+If a cookie definition includes `secret`, related operations become asynchronous across fami and all adapters.
+
+For secret cookies:
+
+- `fami.serialize(...)` and `fami.delete(...)` return `Promise<string>`
+- `fami.parse(...).cookieName` returns `Promise<string | undefined>`
+- adapter helpers like `ctx.setCookie(...)`, `ctx.deleteCookie(...)`, `res.setCookie(...)`, and `res.deleteCookie(...)` should be awaited before response is sent
+
 ### Low‑level API
 
 Useful when you want more control or are moving away from other libraries. You can easily check if Fami is compatible with your existing code. If it is, you _should_ migrate over to the High-level API.

@@ -5,6 +5,7 @@ import {
 	isValidCookieDomain,
 	isValidCookieName,
 	isValidCookiePath,
+	isValidMaxAge,
 	keys,
 	lowercase,
 	newObject,
@@ -148,6 +149,13 @@ export class Fami<
 					throw new InvalidAttributeError("path", definition.path);
 				}
 
+				if (
+					definition?.maxAge !== undefined &&
+					!isValidMaxAge(definition.maxAge)
+				) {
+					throw new InvalidAttributeError("maxAge", String(definition.maxAge));
+				}
+
 				if (definition?.priority) {
 					const lower = lowercase(definition.priority);
 
@@ -172,7 +180,8 @@ export class Fami<
 					}
 				}
 
-				cookies[name] = definition;
+				cookies[name] = { ...definition };
+				Object.freeze(cookies[name]);
 				return cookies;
 			}, newObject<Definition>()),
 		);

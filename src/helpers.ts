@@ -24,14 +24,26 @@ export function isValidCookieName(name: string | undefined): name is string {
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: simmilar as above
 const INVALID_DOMAIN_CHARACTERS = /[\x00-\x20\x7F;,]/;
+const DOMAIN_LABEL = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/;
 export function isValidCookieDomain(domain: string): boolean {
-	return !!domain && !INVALID_DOMAIN_CHARACTERS.test(domain);
+	if (!domain || INVALID_DOMAIN_CHARACTERS.test(domain)) return false;
+
+	const normalized = domain.startsWith(".") ? domain.slice(1) : domain;
+	return (
+		normalized.length > 0 &&
+		normalized.length <= 253 &&
+		normalized.split(".").every((label) => DOMAIN_LABEL.test(label))
+	);
 }
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: simmilar as above
 const INVALID_PATH_CHARACTERS = /[\x00-\x1F\x7F;]/;
 export function isValidCookiePath(path: string): boolean {
 	return !!path && !INVALID_PATH_CHARACTERS.test(path);
+}
+
+export function isValidMaxAge(maxAge: number): boolean {
+	return Number.isSafeInteger(maxAge) && maxAge >= 0;
 }
 
 const ESCAPE_CHARACTERS = /\\(.)/g;
@@ -68,7 +80,7 @@ export function decodeCookieValue(value: string): string {
 const ESCAPABLE_CHARACTERS = /[\\"]/g;
 
 // Encode non-ASCII/control bytes and delimiter characters to preserve round-trips.
-const NEEDS_ENCODING = /[^\x20-\x7E]|[;,]/;
+const NEEDS_ENCODING = /[^\x20-\x7E]|[;,%]/;
 
 // Characters that need quoting or escaping in unquoted values
 const SPECIAL_CHARACTERS = /[\s"\\]/;

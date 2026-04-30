@@ -5,7 +5,7 @@ import {
 	type FamiInput,
 	type PromiseIfSecret,
 } from "./fami";
-import type { CookieAttributes, CookieValue } from "./types";
+import type { CookieAttributes, CookieValue, MaybePromise } from "./types";
 
 export type ExpressRequestStub = { headers: { cookie?: string } };
 export type ExpressResponseStub = {
@@ -40,17 +40,16 @@ export type FamiResponse<
 	Definition extends FamiInput<CookieName>,
 > = {
 	/**
-	 * The cookie jar containing all pending Set-Cookie header values.
+	 * The cookie jar containing resolved Set-Cookie header values.
 	 * Keyed by cookie name -- only the last operation per cookie is kept.
 	 * Inspect this before the response is sent to see what cookies will be set.
 	 */
-	readonly cookieJar: ReadonlyMap<
-		CookieName,
-		PromiseIfSecret<CookieName, Definition>
-	>;
+	readonly cookieJar: ReadonlyMap<CookieName, string>;
 	/**
 	 * Create a Set-Cookie header value with the given name, value and attributes, and add it to the cookie jar.
 	 * The jar is flushed to Set-Cookie headers when the response is sent.
+	 *
+	 * For signed cookies, this returns a Promise. Await it before response is sent.
 	 */
 	/**
 	 *  Create a Set-Cookie header value that with the given name, value and attributes, and add it to the response header
@@ -144,19 +143,55 @@ function createResponse<
 	CookieName extends string,
 	Definition extends FamiInput<CookieName>,
 >(res: ExpressResponseStub, fami: Fami<CookieName, Definition>) {
-	const jar = new Map<CookieName, PromiseIfSecret<CookieName, Definition>>();
+	const jar = new Map<CookieName, string>();
+	const pending = new Map<CookieName, Promise<void>>();
+	const operationId = new Map<CookieName, number>();
+	let counter = 0;
 	const originalWriteHead = res.writeHead;
+
+	function queueHeader(
+		name: CookieName,
+		header: MaybePromise<string>,
+	): Promise<void> | undefined {
+		const id = ++counter;
+		operationId.set(name, id);
+
+		if (header instanceof Promise) {
+			const operation = header
+				.then((resolvedHeader) => {
+					if (operationId.get(name) !== id) {
+						return;
+					}
+
+					jar.set(name, resolvedHeader);
+				})
+				.finally(() => {
+					if (operationId.get(name) !== id) {
+						return;
+					}
+
+					pending.delete(name);
+				});
+
+			pending.set(name, operation);
+			return operation;
+		}
+
+		pending.delete(name);
+		jar.set(name, header);
+		return undefined;
+	}
 
 	Object.defineProperties(res, {
 		setCookie: {
 			value: (...args: Parameters<typeof fami.serialize>) => {
-				jar.set(args[0], fami.serialize(...args));
+				return queueHeader(args[0], fami.serialize(...args));
 			},
 			configurable: false,
 		},
 		deleteCookie: {
 			value: (...args: Parameters<typeof fami.delete>) => {
-				jar.set(args[0], fami.delete(...args));
+				return queueHeader(args[0], fami.delete(...args));
 			},
 			configurable: false,
 		},
@@ -166,25 +201,17 @@ function createResponse<
 		},
 		writeHead: {
 			value: function (this: ExpressResponseStub, ...args: unknown[]) {
-				const promises = [];
-
-				for (const value of jar.values()) {
-					if (value instanceof Promise) {
-						promises.push(
-							value.then((h) => 
-								res.append("Set-Cookie", h)
-							),
-						);
-					} else {
-						res.append("Set-Cookie", value);
-					}
-				}
-
-				if (promises.length > 0) {
-					return Promise.all(promises).then(() =>
-						originalWriteHead.apply(this, args),
+				if (pending.size > 0) {
+					throw new Error(
+						"Signed cookies still pending. Await res.setCookie()/res.deleteCookie() before sending response.",
 					);
 				}
+
+				for (const value of jar.values()) {
+					this.append("Set-Cookie", value);
+				}
+
+				jar.clear();
 
 				return originalWriteHead.apply(this, args);
 			},
@@ -224,7 +251,9 @@ export function fami<
 	CookieName extends string,
 	Definition extends FamiInput<CookieName>,
 >(
-	cookieInit: FamiInput<CookieName> | Fami<CookieName, Definition>,
+	cookieInit:
+		| (FamiInput<CookieName> & Definition)
+		| Fami<CookieName, Definition>,
 ): FamiExpress<CookieName, Definition> {
 	const fami = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 

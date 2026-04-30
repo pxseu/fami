@@ -8,6 +8,7 @@ import {
 	isValidCookieDomain,
 	isValidCookieName,
 	isValidCookiePath,
+	isValidMaxAge,
 	lowercase,
 	NAME_VALUE_MATCHER,
 	newObject,
@@ -71,7 +72,11 @@ export function serialize(
 		result += `; Expires=${formatHttpDate(attributes.expires)}`;
 	}
 
-	if (typeof attributes?.maxAge === "number" && attributes.maxAge >= 0) {
+	if (attributes?.maxAge !== undefined) {
+		if (!isValidMaxAge(attributes.maxAge)) {
+			throw new InvalidAttributeError("maxAge", String(attributes.maxAge));
+		}
+
 		result += `; Max-Age=${attributes.maxAge}`;
 	}
 

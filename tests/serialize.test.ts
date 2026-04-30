@@ -93,10 +93,21 @@ describe("serialize", () => {
 			expect(result).toBe("foo=bar%3Bwith%3Bsemicolons");
 		});
 
+		test("encodes percent signs to preserve round-trips", () => {
+			const result = serialize("foo", "100%25");
+			expect(result).toBe("foo=100%2525");
+		});
+
 		test("round-trips semicolons through parse", () => {
 			const serialized = serialize("foo", "bar;with;semicolons");
 			const parsed = parse(serialized);
 			expect(parsed.foo).toBe("bar;with;semicolons");
+		});
+
+		test("round-trips percent signs through parse", () => {
+			const serialized = serialize("foo", "100%25");
+			const parsed = parse(serialized);
+			expect(parsed.foo).toBe("100%25");
 		});
 
 		test("encodes non-ASCII characters (fallback to encoding)", () => {
@@ -118,9 +129,21 @@ describe("serialize", () => {
 		});
 
 		test("ignores negative max-age", () => {
-			const result = serialize("test", "value", { maxAge: -1 });
-			expect(result).toBe("test=value");
-			expect(result).not.toContain("Max-Age");
+			expect(() => serialize("test", "value", { maxAge: -1 })).toThrow(
+				InvalidAttributeError,
+			);
+		});
+
+		test("throws for non-integer max-age", () => {
+			expect(() => serialize("test", "value", { maxAge: 1.5 })).toThrow(
+				InvalidAttributeError,
+			);
+		});
+
+		test("throws for non-finite max-age", () => {
+			expect(() =>
+				serialize("test", "value", { maxAge: Number.POSITIVE_INFINITY }),
+			).toThrow(InvalidAttributeError);
 		});
 	});
 
@@ -234,6 +257,19 @@ describe("serialize", () => {
 			expect(() =>
 				serialize("test", "value", { domain: "example.com\r\nX-Test: 1" }),
 			).toThrow(InvalidAttributeError);
+		});
+
+		test("throws error for malformed domain labels", () => {
+			for (const domain of [
+				"http://example.com",
+				"-example.com",
+				"example-.com",
+				"example..com",
+			]) {
+				expect(() => serialize("test", "value", { domain })).toThrow(
+					InvalidAttributeError,
+				);
+			}
 		});
 
 		test("throws error for invalid path", () => {
