@@ -68,19 +68,19 @@ describe("serialize", () => {
 	});
 
 	describe("value encoding", () => {
-		test("quotes values with special characters", () => {
+		test("encodes values with spaces", () => {
 			const result = serialize("test", "value with spaces");
-			expect(result).toBe('test="value with spaces"');
+			expect(result).toBe("test=value%20with%20spaces");
 		});
 
-		test("escapes quotes in values", () => {
+		test("encodes quotes in values", () => {
 			const result = serialize("test", 'value "with" quotes');
-			expect(result).toBe('test="value \\"with\\" quotes"');
+			expect(result).toBe("test=value%20%22with%22%20quotes");
 		});
 
-		test("handles values with backslashes (escapes them)", () => {
+		test("encodes values with backslashes", () => {
 			const result = serialize("test", "path\\to\\file");
-			expect(result).toBe('test="path\\\\to\\\\file"');
+			expect(result).toBe("test=path%5Cto%5Cfile");
 		});
 
 		test("handles values with = and ^ characters", () => {

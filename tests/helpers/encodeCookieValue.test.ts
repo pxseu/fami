@@ -18,10 +18,10 @@ describe("encodeCookieValue", () => {
 		});
 	});
 
-	describe("quoting", () => {
-		test("quotes values with spaces", () => {
+	describe("URL encoding", () => {
+		test("URL-encodes values with spaces", () => {
 			expect(encodeCookieValue("value with spaces")).toBe(
-				'"value with spaces"',
+				"value%20with%20spaces",
 			);
 		});
 
@@ -31,18 +31,16 @@ describe("encodeCookieValue", () => {
 			);
 		});
 
-		test("quotes and escapes values with quotes", () => {
+		test("URL-encodes values with quotes", () => {
 			expect(encodeCookieValue('value "with" quotes')).toBe(
-				'"value \\"with\\" quotes"',
+				"value%20%22with%22%20quotes",
 			);
 		});
 
-		test("quotes and escapes values with backslashes", () => {
-			expect(encodeCookieValue("path\\to\\file")).toBe('"path\\\\to\\\\file"');
+		test("URL-encodes values with backslashes", () => {
+			expect(encodeCookieValue("path\\to\\file")).toBe("path%5Cto%5Cfile");
 		});
-	});
 
-	describe("URL encoding", () => {
 		test("URL-encodes non-ASCII characters", () => {
 			expect(encodeCookieValue("🎉")).toBe("%F0%9F%8E%89");
 			expect(encodeCookieValue("café")).toBe("caf%C3%A9");

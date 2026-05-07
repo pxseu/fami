@@ -52,9 +52,11 @@ export function parse(cookieHeader: string | null | undefined): Cookies {
 }
 
 /**
- * Serializes a cookie object to a Set-Cookie header value
+ * Serializes a cookie name, value, and optional attributes to a Set-Cookie header value.
  *
- * @param cookie The cookie object to serialize
+ * @param name The cookie name
+ * @param value The cookie value
+ * @param attributes Optional Set-Cookie attributes
  * @returns Set-Cookie header value string
  */
 export function serialize(

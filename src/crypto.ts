@@ -1,7 +1,7 @@
 const SEPARATOR = ".";
 const ENCODING = "base64url";
 const ALGORITHM = { name: "HMAC", hash: "SHA-256" } as const;
-const USAGES = ["sign", "verify"] as const;
+const USAGES = ["sign", "verify"] as const satisfies KeyUsage[];
 
 const encoder = new TextEncoder();
 

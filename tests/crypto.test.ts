@@ -8,6 +8,13 @@ import {
 } from "../src/crypto";
 
 describe("crypto", () => {
+	describe("runtime support", () => {
+		test("provides the Uint8Array Base64 APIs required for signed cookies", () => {
+			expect(typeof Uint8Array.prototype.toBase64).toBe("function");
+			expect(typeof Uint8Array.fromBase64).toBe("function");
+		});
+	});
+
 	describe("importKey", () => {
 		test("imports a string secret as an HMAC key", async () => {
 			const key = await importKey("super-secret");

@@ -13,6 +13,6 @@
 		"wrangler": "^4.86.0"
 	},
 	"dependencies": {
-		"fami": "^2.0.4"
+		"fami": "^2.0.5"
 	}
 }

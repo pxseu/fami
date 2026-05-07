@@ -1,7 +1,6 @@
 {
 	"compilerOptions": {
-		"lib": ["DOM", "EsNext.TypedArrays"],
-		"types": ["bun"],
+		"lib": ["DOM", "EsNext"],
 		"target": "ESNext",
 		"module": "Preserve",
 		"moduleDetection": "force",
@@ -27,5 +26,5 @@
 		"noPropertyAccessFromIndexSignature": false,
 	},
 	"include": ["src/**/*.ts", "tsup.config.ts"],
-	"exclude": ["coverage", "dist", "examples", "node_modules"]
+	"exclude": ["coverage", "dist", "examples", "node_modules"],
 }

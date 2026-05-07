@@ -52,10 +52,17 @@
 		}
 	},
 	"scripts": {
-		"build": "tsup",
+		"build": "bun --bun tsup",
 		"test": "bun test --coverage",
+		"typecheck": "tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
 		"t": "bun run test",
-		"prepublishOnly": "bun run build && bun run test"
+		"tc": "bun run typecheck",
+		"prepublishOnly": "bun run typecheck && bun run build && bun run test"
+	},
+	"engines": {
+		"node": ">=25",
+		"bun": ">=1.1.22",
+		"deno": ">=2.5.0"
 	},
 	"keywords": [
 		"cookie",

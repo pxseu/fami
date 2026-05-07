@@ -2,9 +2,9 @@
 
 ![NPM Version](https://img.shields.io/npm/v/fami) ![License](https://img.shields.io/npm/l/fami) ![npm package minimized gzipped size](https://img.shields.io/bundlejs/size/fami) [![Publishing](https://github.com/pxseu/fami/actions/workflows/publish.yml/badge.svg)](https://github.com/pxseu/fami/actions/workflows/publish.yml) [![Tests](https://github.com/pxseu/fami/actions/workflows/test.yml/badge.svg)](https://github.com/pxseu/fami/actions/workflows/test.yml)
 
-Working with cookies shouldn't be complicated or scary. **fami** makes HTTP cookie management simple, safe, and of course type-safe.
+Working with cookies shouldn't be complicated or scary. **fami** makes HTTP cookie management simple, safe, and type-safe.
 
-**fami** is a lightweight library focused on correctness and developer experience, following modern RFC 6265bis standards with an intuitive API designed for today's web.
+**fami** is a lightweight library focused on correctness and developer experience, following the modern RFC 6265bis draft with an intuitive API designed for today's web.
 
 ## Table of Contents
 
@@ -13,8 +13,9 @@ Working with cookies shouldn't be complicated or scary. **fami** makes HTTP cook
 - [Compatibility](#compatibility)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-  - [High-level API (recommended)](#highlevel-api-recommended)
-  - [Low-level API](#lowlevel-api)
+  - [High-level API (recommended)](#high-level-api-recommended)
+  - [Signed cookies (async behavior)](#signed-cookies-async-behavior)
+  - [Low-level API](#low-level-api)
 - [Framework Integration](#framework-integration)
   - [Kaito](#kaito)
   - [Express](#express)
@@ -25,12 +26,13 @@ Working with cookies shouldn't be complicated or scary. **fami** makes HTTP cook
 
 ## Features
 
-- Schema-based abstraction for cookie definitions and serializing/parsing cookies with type safety
+- Schema-based cookie definitions with type-safe parsing and serialization
 - Flexible cookie parsing/serialization
-- First‑class integration with [**Express**](https://expressjs.com/) and [**Kaito**](https://github.com/kaito-http/kaito)
+- First-class integration with [**Express**](https://expressjs.com/) and [**Kaito**](https://github.com/kaito-http/kaito)
 - Safe, predictable behavior following the latest HTTP State Management draft ([RFC 6265bis](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-21))
 - Strong TypeScript support with extensive JSDoc
 - Zero dependencies, tiny footprint
+- Signed cookie support with secure defaults and modern algorithms (HMAC-SHA256)
 
 ## Why fami?
 
@@ -41,7 +43,7 @@ If you're already using a cookie library, you might wonder why you should switch
 > **Note:** `cookie` is a perfectly valid choice and is very well maintained. It has been around for a long time and is a well-established library with battle-tested code and a large community.
 
 - fami provides a high-level schema-based API that prevents cookie configuration drift across your codebase
-- Full RFC 6265bis compliance with modern parsing rules
+- Strong RFC 6265bis alignment with modern parsing rules
 - Better TypeScript support with extensive JSDoc comments
 
 **vs. rolling your own**
@@ -58,7 +60,21 @@ If you're already using a cookie library, you might wonder why you should switch
 
 ## Compatibility
 
-**fami** is runtime-agnostic and works in all of your favorite runtimes. Such as but not limited to: Bun, Node.js, Deno, Cloudflare Workers, Vercel, Netlify, and more.
+**fami** is runtime-agnostic and works across modern JavaScript runtimes that implement the Web APIs listed below.
+
+It does, however, require the following modern APIs:
+
+- [`SubtleCrypto`](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto) for secure signing of cookies (if using signed cookies)
+- [`TextEncoder`](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder) for encoding/decoding cookie binary values
+- [`Uint8Array` Base64 APIs](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array/toBase64) (`Uint8Array.prototype.toBase64` and `Uint8Array.fromBase64`) for signed cookie base64url encoding/decoding
+
+This being exactly one of the following:
+
+- Node.js 25+
+- Bun 1.1.22+
+- Deno 2.5.0+
+
+Vercel Edge Functions, Cloudflare Workers, and other modern edge runtimes should also be compatible but have not been extensively tested.
 
 ## Installation
 
@@ -74,9 +90,9 @@ pnpm add fami
 
 ## Quick Start
 
-### High‑level API (recommended)
+### High-level API (recommended)
 
-The High-level API provides a simple and intuitive abstraction for managing your cookie attributes and names. Define your cookie names once and use them throughout your application with full type safety. Set sane defaults for your cookies and serialize/parse them worry free of edge cases.
+The high-level API provides a simple abstraction for managing cookie names and attributes. Define your cookie names once and use them throughout your application with full type safety. Set sane defaults for your cookies and serialize or parse them without worrying about edge cases.
 
 ```ts
 import { Fami } from "fami";
@@ -121,9 +137,32 @@ For secret cookies:
 - `fami.parse(...).cookieName` returns `Promise<string | undefined>`
 - adapter helpers like `ctx.setCookie(...)`, `ctx.deleteCookie(...)`, `res.setCookie(...)`, and `res.deleteCookie(...)` should be awaited before response is sent
 
-### Low‑level API
+```ts
+import { Fami } from "fami";
 
-Useful when you want more control or are moving away from other libraries. You can easily check if Fami is compatible with your existing code. If it is, you _should_ migrate over to the High-level API.
+const fami = new Fami({
+	session: {
+		httpOnly: true,
+		secure: true,
+		secret: "super-secret",
+	},
+});
+
+const header = await fami.serialize("session", "abc123");
+console.log(header);
+// "session=abc123.<signature>; Secure; HttpOnly"
+
+const cookieHeader = header.split(";")[0];
+const cookies = fami.parse(cookieHeader);
+const session = await cookies.session;
+
+console.log(session);
+// "abc123"
+```
+
+### Low-level API
+
+Useful when you want more control or are moving away from other libraries. You can quickly check whether fami is compatible with your existing code. If it is, you should usually migrate to the high-level API.
 
 ```ts
 import { parse } from "fami";
@@ -153,32 +192,29 @@ console.log(cookie);
 
 **[Kaito](https://github.com/kaito-http/kaito)** is a modern, type-safe functional HTTP framework.
 
-fami provides first‑class [**Kaito**](https://github.com/kaito-http/kaito) support through a tiny utility that extends the Kaito context with fami's methods. The utility adds functions like `ctx.setCookie("session", "value")` and `ctx.deleteCookie("session")` to the Kaito context which make it a great experience to work with.
+**fami** provides first-class Kaito support through a small utility that extends the Kaito context with fami's methods. It adds helpers like `ctx.setCookie("session", "value")` and `ctx.deleteCookie("session")` directly to the Kaito context.
 
 ```ts
 import { create } from "@kaito-http/core";
 import { fami } from "fami/kaito";
 
 const kaito = create().pipe(
-  fami({
-    session: {},
-  }),
-});
+	fami({
+		session: { maxAge: 60 * 60 },
+	}),
+);
 
-const app = kaito.get("/", ({ ctx }) => {
-  const session = ctx.cookies.session;
-
-  if (session) {
-    return {
-      message: "You are logged in!",
-    };
-  }
-
-  throw new KaitoError(401, "Unauthorized");
-});
+const app = kaito
+	.get("/", ({ ctx }) => {
+		return ctx.cookies;
+	})
+	.get("/set-cookie", ({ ctx }) => {
+		ctx.setCookie("session", new Date().toISOString());
+		return "Cookie set";
+	});
 
 Bun.serve({
-  fetch: app.serve(),
+	fetch: app.serve(),
 });
 ```
 
@@ -191,7 +227,7 @@ For more details, you can take a look at the [examples](./examples/kaito/index.t
 fami provides a dedicated Express adapter through `fami/express` that gives you type-safe cookie management with full Express autocomplete. The adapter provides a middleware that augments `req` and `res` with fami's methods, and a `handler()` wrapper that narrows the types so `req.cookies`, `res.setCookie()`, `res.deleteCookie()` and `res.json()` all have full autocomplete and type safety.
 
 > [!IMPORTANT]
-> You MUST install the `@types/express` package manually, for the best experience.
+> You MUST install the `@types/express` package manually for the best experience.
 
 ```ts
 import express from "express";
@@ -219,14 +255,15 @@ For more details, you can take a look at the [examples](./examples/express/index
 
 ## RFC Compliance
 
-fami targets the latest HTTP State Management draft (**RFC 6265bis**, draft‑21 as of 2025), and future drafts onwards.
+**fami** targets the latest HTTP State Management draft (**RFC 6265bis**, draft-22 as of December 2025) and will track newer drafts as the spec evolves.
 
 Highlights:
 
-- **Modern Attributes:** Full support for [`Partitioned` (CHIPS)](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Privacy_sandbox/Partitioned_cookies), `Priority`, and `SameSite` configuration.
+- **Standard attributes:** Full support for RFC 6265bis attributes including `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and `SameSite`.
+- **Extension attributes:** Support for [`Partitioned` (CHIPS)](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Privacy_sandbox/Partitioned_cookies) and `Priority`.
 - Follows modern parsing rules
 - Is backwards compatible with the legacy RFC 6265 syntax
-- Strict attribute handling
+- Strict attribute validation and draft-safe value serialization
 - Serialization consistent with draft syntax expectations
 
 ## Inspirations
@@ -240,15 +277,15 @@ fami was inspired by the following libraries:
 
 ### Prerequisites
 
-Although **fami** is runtime-agnostic, it is developed and tested using Bun. It is advised to use Bun when developing.
+Although **fami** is runtime-agnostic, it is developed and tested with Bun. Using Bun for local development is recommended.
 
 ```bash
 # install deps
 bun install
 
-# dry run the publish command to see what would be published,
-# this also runs the test suite and builds the package
-bun run publish --dry-run
+# dry-run the publish flow to see what would be published
+# this also builds the package and runs the test suite
+NPM_CONFIG_TOKEN=stub bun publish --dry-run
 ```
 
 ### Testing
@@ -269,7 +306,9 @@ The test suite covers:
 
 ### Publishing
 
-Releases are published automatically via GitHub Actions. Existing versions on npm are never overwritten and each release is immutable, and new versions are always published with a new semver tag.
+Releases are published automatically via GitHub Actions. Existing npm versions are never overwritten, each release is immutable, and every publish uses a new semver tag.
+
+You can inspect the publish workflow in [publish.yml](./.github/workflows/publish.yml).
 
 ## License
 

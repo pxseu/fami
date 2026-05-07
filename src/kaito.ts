@@ -21,7 +21,7 @@ export interface FamiContext<
 	 */
 	readonly cookies: ReturnType<Fami<CookieName, Defs>["parse"]>;
 	/**
-	 *  Create a Set-Cookie header value that with the given name, value and attributes, and add it to the response header
+	 *  Create a Set-Cookie header value with the given name, value, and attributes, and add it to the response header
 	 */
 	setCookie<Name extends CookieName>(
 		name: Name,

@@ -76,25 +76,12 @@ export function decodeCookieValue(value: string): string {
 	}
 }
 
-// Characters that need to be escaped when quoted: backslash and double quote
-const ESCAPABLE_CHARACTERS = /[\\"]/g;
-
-// Encode non-ASCII/control bytes and delimiter characters to preserve round-trips.
-const NEEDS_ENCODING = /[^\x20-\x7E]|[;,%]/;
-
-// Characters that need quoting or escaping in unquoted values
-const SPECIAL_CHARACTERS = /[\s"\\]/;
+// Encode anything outside RFC 6265bis cookie-octet, plus percent to preserve decode round-trips.
+const NEEDS_ENCODING = /[^\x21\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]|%/;
 
 export function encodeCookieValue(value: string): string {
 	if (NEEDS_ENCODING.test(value)) {
 		return encodeURIComponent(value);
-	}
-
-	// the value is quotable, so we need to escape it
-	if (SPECIAL_CHARACTERS.test(value)) {
-		// escape backslashes and double quotes, then wrap in quotes
-		const escaped = value.replace(ESCAPABLE_CHARACTERS, "\\$&");
-		return `"${escaped}"`;
 	}
 
 	return value;

@@ -11,8 +11,10 @@ Please report suspected vulnerabilities privately.
 Preferred: use GitHub’s “Report a vulnerability” flow for the repository (this creates a private security advisory thread):
 https://github.com/pxseu/fami/security/advisories/new
 
-If you cannot use GitHub advisories, contact the maintainer via GitHub and request a private security contact method:
+If you cannot use GitHub advisories, contact the maintainer via GitHub and request a private security contact method before sharing any vulnerability details:
 https://github.com/pxseu
+
+Keep the initial outreach minimal. Do not include exploit details, proof-of-concept code, or other sensitive information until a private channel is established.
 
 Please do not open a public GitHub issue or discussion with exploit details.
 

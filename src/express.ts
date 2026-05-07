@@ -46,13 +46,10 @@ export type FamiResponse<
 	 */
 	readonly cookieJar: ReadonlyMap<CookieName, string>;
 	/**
-	 * Create a Set-Cookie header value with the given name, value and attributes, and add it to the cookie jar.
+	 * Create a Set-Cookie header value with the given name, value, and attributes, and add it to the cookie jar.
 	 * The jar is flushed to Set-Cookie headers when the response is sent.
 	 *
-	 * For signed cookies, this returns a Promise. Await it before response is sent.
-	 */
-	/**
-	 *  Create a Set-Cookie header value that with the given name, value and attributes, and add it to the response header
+	 * For signed cookies, this returns a Promise. Await it before the response is sent.
 	 */
 	setCookie<Name extends CookieName>(
 		name: Name,
