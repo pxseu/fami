@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { InvalidValueError } from "../../src/errors";
 import { encodeCookieValue } from "../../src/helpers";
 
 describe("encodeCookieValue", () => {
@@ -49,6 +50,11 @@ describe("encodeCookieValue", () => {
 		test("URL-encodes control characters", () => {
 			expect(encodeCookieValue("hello\nworld")).toBe("hello%0Aworld");
 			expect(encodeCookieValue("tab\there")).toBe("tab%09here");
+		});
+
+		test("throws InvalidValueError on lone surrogates", () => {
+			expect(() => encodeCookieValue("\uD800")).toThrow(InvalidValueError);
+			expect(() => encodeCookieValue("a\uDC00b")).toThrow(InvalidValueError);
 		});
 	});
 });

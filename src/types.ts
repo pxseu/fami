@@ -1,9 +1,22 @@
-import type { VALID_PRIORITY_VALUES, VALID_SAME_SITE_VALUES } from "./helpers";
+import type {
+	VALID_PREFIX_VALUES,
+	VALID_PRIORITY_VALUES,
+	VALID_SAME_SITE_VALUES,
+} from "./helpers";
 
 /**
  * Primitive cookie values, that can be used without any special serializing.
  */
 export type CookieValue = string | number | boolean;
+
+/**
+ * A raw `Cookie` request header: a single value, multiple header values, or absent.
+ */
+export type CookieHeader = string | readonly string[] | null | undefined;
+
+export type SameSite = (typeof VALID_SAME_SITE_VALUES)[number];
+export type CookiePriority = (typeof VALID_PRIORITY_VALUES)[number];
+export type CookiePrefix = (typeof VALID_PREFIX_VALUES)[number];
 
 export type CookieAttributes = Partial<{
 	/**
@@ -51,7 +64,7 @@ export type CookieAttributes = Partial<{
 	 *
 	 * @see https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers/Set-Cookie#samesitesamesite-value
 	 */
-	sameSite: (typeof VALID_SAME_SITE_VALUES)[number];
+	sameSite: SameSite;
 	/**
 	 *  Enables Partitioned Cookies (CHIPS). This is not available in all browsers yet.
 	 *
@@ -64,7 +77,7 @@ export type CookieAttributes = Partial<{
 	 *
 	 *  @see https://issues.chromium.org/issues/41007714
 	 */
-	priority: (typeof VALID_PRIORITY_VALUES)[number];
+	priority: CookiePriority;
 }>;
 
 /**
@@ -74,5 +87,4 @@ export type Cookies = {
 	[key: string]: string;
 };
 
-export type MaybeReadonly<T> = T | Readonly<T>;
 export type MaybePromise<T> = T | Promise<T>;

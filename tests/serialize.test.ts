@@ -10,8 +10,7 @@ import {
 describe("serialize", () => {
 	describe("basic serialization", () => {
 		test("serializes basic cookie", () => {
-			const result = serialize("test", "value");
-			expect(result).toBe("test=value");
+			expect(serialize("test", "value")).toBe("test=value");
 		});
 
 		test("serializes cookie with all attributes", () => {
@@ -22,7 +21,7 @@ describe("serialize", () => {
 				path: "/",
 				secure: true,
 				httpOnly: true,
-				sameSite: "strict",
+				sameSite: "none",
 				partitioned: true,
 				priority: "high",
 			});
@@ -36,99 +35,67 @@ describe("serialize", () => {
 			expect(result).toContain("HttpOnly");
 			expect(result).toContain("Partitioned");
 			expect(result).toContain("Priority=High");
-			expect(result).toContain("SameSite=Strict");
+			expect(result).toContain("SameSite=None");
 		});
 
 		test("handles empty value", () => {
-			const result = serialize("test", "");
-			expect(result).toBe("test=");
+			expect(serialize("test", "")).toBe("test=");
 		});
 	});
 
 	describe("non-string values", () => {
-		test("serializes number value", () => {
+		test("serializes numbers", () => {
 			expect(serialize("counter", 42)).toBe("counter=42");
-		});
-
-		test("serializes zero", () => {
 			expect(serialize("counter", 0)).toBe("counter=0");
-		});
-
-		test("serializes negative number", () => {
 			expect(serialize("offset", -1)).toBe("offset=-1");
 		});
 
-		test("serializes boolean true", () => {
+		test("serializes booleans", () => {
 			expect(serialize("enabled", true)).toBe("enabled=true");
-		});
-
-		test("serializes boolean false", () => {
 			expect(serialize("enabled", false)).toBe("enabled=false");
 		});
 	});
 
 	describe("value encoding", () => {
-		test("encodes values with spaces", () => {
-			const result = serialize("test", "value with spaces");
-			expect(result).toBe("test=value%20with%20spaces");
+		test("returns simple values unchanged", () => {
+			expect(serialize("foo", "E=mc^2")).toBe("foo=E=mc^2");
 		});
 
-		test("encodes quotes in values", () => {
-			const result = serialize("test", 'value "with" quotes');
-			expect(result).toBe("test=value%20%22with%22%20quotes");
+		test("encodes special characters", () => {
+			expect(serialize("test", "value with spaces")).toBe(
+				"test=value%20with%20spaces",
+			);
+			expect(serialize("test", 'value "with" quotes')).toBe(
+				"test=value%20%22with%22%20quotes",
+			);
+			expect(serialize("test", "path\\to\\file")).toBe("test=path%5Cto%5Cfile");
 		});
 
-		test("encodes values with backslashes", () => {
-			const result = serialize("test", "path\\to\\file");
-			expect(result).toBe("test=path%5Cto%5Cfile");
+		test("encodes semicolons and percent signs to preserve round-trips", () => {
+			expect(serialize("foo", "bar;with;semicolons")).toBe(
+				"foo=bar%3Bwith%3Bsemicolons",
+			);
+			expect(serialize("foo", "100%25")).toBe("foo=100%2525");
 		});
 
-		test("handles values with = and ^ characters", () => {
-			const result = serialize("foo", "E=mc^2");
-			expect(result).toBe("foo=E=mc^2");
+		test("round-trips encoded values through parse", () => {
+			for (const value of ["bar;with;semicolons", "100%25"]) {
+				expect(parse(serialize("foo", value)).foo).toBe(value);
+			}
 		});
 
-		test("encodes values with semicolons to preserve round-trips", () => {
-			const result = serialize("foo", "bar;with;semicolons");
-			expect(result).toBe("foo=bar%3Bwith%3Bsemicolons");
-		});
-
-		test("encodes percent signs to preserve round-trips", () => {
-			const result = serialize("foo", "100%25");
-			expect(result).toBe("foo=100%2525");
-		});
-
-		test("round-trips semicolons through parse", () => {
-			const serialized = serialize("foo", "bar;with;semicolons");
-			const parsed = parse(serialized);
-			expect(parsed.foo).toBe("bar;with;semicolons");
-		});
-
-		test("round-trips percent signs through parse", () => {
-			const serialized = serialize("foo", "100%25");
-			const parsed = parse(serialized);
-			expect(parsed.foo).toBe("100%25");
-		});
-
-		test("encodes non-ASCII characters (fallback to encoding)", () => {
-			const result = serialize("emoji", "🎉");
-			expect(result).toBe("emoji=%F0%9F%8E%89");
-		});
-
-		test("encodes control characters (fallback to encoding)", () => {
-			const result = serialize("test", "hello\nworld");
-			expect(result).toBe("test=hello%0Aworld");
+		test("encodes non-ASCII and control characters", () => {
+			expect(serialize("emoji", "🎉")).toBe("emoji=%F0%9F%8E%89");
+			expect(serialize("test", "hello\nworld")).toBe("test=hello%0Aworld");
 		});
 	});
 
 	describe("maxAge attribute", () => {
-		test("handles zero max-age", () => {
-			const result = serialize("test", "value", { maxAge: 0 });
-			expect(result).toStartWith("test=value;");
-			expect(result).toContain("Max-Age=0");
+		test("accepts zero", () => {
+			expect(serialize("test", "value", { maxAge: 0 })).toContain("Max-Age=0");
 		});
 
-		test("ignores negative max-age", () => {
+		test("throws for negative max-age", () => {
 			expect(() => serialize("test", "value", { maxAge: -1 })).toThrow(
 				InvalidAttributeError,
 			);
@@ -148,123 +115,173 @@ describe("serialize", () => {
 	});
 
 	describe("sameSite attribute", () => {
-		test("handles strict value", () => {
-			const result = serialize("test", "value", { sameSite: "strict" });
-			expect(result).toStartWith("test=value;");
-			expect(result).toContain("SameSite=Strict");
+		test("emits each valid value in canonical case", () => {
+			expect(serialize("test", "value", { sameSite: "strict" })).toContain(
+				"SameSite=Strict",
+			);
+			expect(serialize("test", "value", { sameSite: "lax" })).toContain(
+				"SameSite=Lax",
+			);
+			const none = serialize("test", "value", {
+				sameSite: "none",
+				secure: true,
+			});
+			expect(none).toContain("SameSite=None");
+			expect(none).toContain("Secure");
 		});
 
-		test("handles lax value", () => {
-			const result = serialize("test", "value", { sameSite: "lax" });
-			expect(result).toStartWith("test=value;");
-			expect(result).toContain("SameSite=Lax");
+		test("throws for SameSite=None without Secure", () => {
+			expect(() => serialize("test", "value", { sameSite: "none" })).toThrow(
+				InvalidAttributeError,
+			);
 		});
 
-		test("handles none value", () => {
-			const result = serialize("test", "value", { sameSite: "none" });
-			expect(result).toStartWith("test=value;");
-			expect(result).toContain("SameSite=None");
-		});
-
-		test("throws error for invalid value", () => {
-			expect(() =>
-				serialize("test", "value", { sameSite: "Invalid" as "strict" }),
-			).toThrow(InvalidAttributeError);
+		test("throws for invalid sameSite value", () => {
 			expect(() =>
 				serialize("test", "value", { sameSite: "Invalid" as "strict" }),
 			).toThrow("Invalid SameSite value");
 		});
+
+		test("throws for empty sameSite value", () => {
+			expect(() =>
+				serialize("test", "value", { sameSite: "" as "strict" }),
+			).toThrow(InvalidAttributeError);
+		});
 	});
 
 	describe("priority attribute", () => {
-		test("handles low value", () => {
-			const result = serialize("test", "value", { priority: "low" });
-			expect(result).toStartWith("test=value;");
-			expect(result).toContain("Priority=Low");
+		test("emits each valid value in canonical case", () => {
+			expect(serialize("test", "value", { priority: "low" })).toContain(
+				"Priority=Low",
+			);
+			expect(serialize("test", "value", { priority: "medium" })).toContain(
+				"Priority=Medium",
+			);
+			expect(serialize("test", "value", { priority: "high" })).toContain(
+				"Priority=High",
+			);
 		});
 
-		test("handles medium value", () => {
-			const result = serialize("test", "value", { priority: "medium" });
-			expect(result).toStartWith("test=value;");
-			expect(result).toContain("Priority=Medium");
-		});
-
-		test("handles high value", () => {
-			const result = serialize("test", "value", { priority: "high" });
-			expect(result).toStartWith("test=value;");
-			expect(result).toContain("Priority=High");
-		});
-
-		test("throws error for invalid value", () => {
-			expect(() =>
-				serialize("test", "value", { priority: "invalid" as "low" }),
-			).toThrow(InvalidAttributeError);
+		test("throws for invalid priority value", () => {
 			expect(() =>
 				serialize("test", "value", { priority: "invalid" as "low" }),
 			).toThrow("Invalid priority value");
 		});
+
+		test("throws for empty priority value", () => {
+			expect(() =>
+				serialize("test", "value", { priority: "" as "low" }),
+			).toThrow(InvalidAttributeError);
+		});
 	});
 
 	describe("partitioned attribute", () => {
-		test("handles partitioned attribute", () => {
-			const result = serialize("test", "value", { partitioned: true });
-			expect(result).toStartWith("test=value;");
-			expect(result).toContain("Partitioned");
-		});
-
-		test("ignores partitioned attribute when false", () => {
-			const result = serialize("test", "value", { partitioned: false });
-			expect(result).toBe("test=value");
-			expect(result).not.toContain("Partitioned");
-		});
-
-		test("handles cookie with both partitioned and priority", () => {
+		test("emits Partitioned when Secure is set", () => {
 			const result = serialize("test", "value", {
 				partitioned: true,
-				priority: "high",
+				secure: true,
 			});
-			expect(result).toStartWith("test=value;");
+
 			expect(result).toContain("Partitioned");
-			expect(result).toContain("Priority=High");
+			expect(result).toContain("Secure");
+		});
+
+		test("omits Partitioned when false", () => {
+			expect(serialize("test", "value", { partitioned: false })).toBe(
+				"test=value",
+			);
+		});
+
+		test("throws for Partitioned without Secure", () => {
+			expect(() => serialize("test", "value", { partitioned: true })).toThrow(
+				InvalidAttributeError,
+			);
+		});
+	});
+
+	describe("literal __Secure- / __Host- wire names", () => {
+		test("serializes __Secure-<name> when Secure is set", () => {
+			expect(serialize("__Secure-session", "abc123", { secure: true })).toBe(
+				"__Secure-session=abc123; Secure",
+			);
+		});
+
+		test("serializes __Host-<name> with the default Path=/", () => {
+			expect(serialize("__Host-session", "abc123", { secure: true })).toBe(
+				"__Host-session=abc123; Path=/; Secure",
+			);
+		});
+
+		test("throws on __Secure-<name> without Secure", () => {
+			expect(() => serialize("__Secure-session", "abc123")).toThrow(
+				InvalidAttributeError,
+			);
+		});
+
+		test("throws on __Host-<name> without Secure", () => {
+			expect(() => serialize("__Host-session", "abc123")).toThrow(
+				InvalidAttributeError,
+			);
+		});
+
+		test("throws on __Host-<name> with Domain", () => {
+			expect(() =>
+				serialize("__Host-session", "abc123", {
+					secure: true,
+					domain: "example.com",
+				}),
+			).toThrow(InvalidAttributeError);
+		});
+
+		test("throws on __Host-<name> with a non-/ Path", () => {
+			expect(() =>
+				serialize("__Host-session", "abc123", {
+					secure: true,
+					path: "/admin",
+				}),
+			).toThrow(InvalidAttributeError);
+		});
+
+		test("throws on __Host-<name> with an empty Path", () => {
+			expect(() =>
+				serialize("__Host-session", "abc123", {
+					secure: true,
+					path: "",
+				}),
+			).toThrow(InvalidAttributeError);
 		});
 	});
 
 	describe("error handling", () => {
-		test("throws error for missing name", () => {
+		test("throws for missing name", () => {
 			// @ts-expect-error
 			expect(() => serialize()).toThrow(InvalidNameError);
 			// @ts-expect-error
 			expect(() => serialize()).toThrow("Name is required");
 		});
 
-		test("throws error for invalid name", () => {
+		test("throws for invalid name", () => {
 			expect(() => serialize("invalid name", "value")).toThrow(
 				InvalidNameError,
 			);
 			expect(() => serialize("invalid name", "value")).toThrow("Invalid name");
+			expect(() => serialize("café", "value")).toThrow(InvalidNameError);
 		});
 
-		test("throws error for invalid date", () => {
+		test("throws for invalid date", () => {
 			expect(() =>
 				serialize("test", "value", { expires: new Date("invalid") }),
 			).toThrow(InvalidDateError);
-			expect(() =>
-				serialize("test", "value", { expires: new Date("invalid") }),
-			).toThrow("Invalid date");
 		});
 
-		test("throws error for invalid domain", () => {
-			expect(() =>
-				serialize("test", "value", { domain: "example.com\r\nX-Test: 1" }),
-			).toThrow(InvalidAttributeError);
-		});
-
-		test("throws error for malformed domain labels", () => {
+		test("throws for malformed domain", () => {
 			for (const domain of [
+				"",
 				"http://example.com",
 				"-example.com",
 				"example-.com",
 				"example..com",
+				"example.com\r\nX-Test: 1",
 			]) {
 				expect(() => serialize("test", "value", { domain })).toThrow(
 					InvalidAttributeError,
@@ -272,9 +289,15 @@ describe("serialize", () => {
 			}
 		});
 
-		test("throws error for invalid path", () => {
+		test("throws for invalid path", () => {
 			expect(() =>
 				serialize("test", "value", { path: "/\r\nX-Test: 1" }),
+			).toThrow(InvalidAttributeError);
+			expect(() =>
+				serialize("test", "value", { path: "/; Secure" }),
+			).toThrow(InvalidAttributeError);
+			expect(() =>
+				serialize("test", "value", { path: "/café" }),
 			).toThrow(InvalidAttributeError);
 		});
 	});

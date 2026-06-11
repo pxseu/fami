@@ -1,5 +1,10 @@
-import { InvalidDateError } from "./errors";
-import type { MaybeReadonly } from "./types";
+import {
+	InvalidAttributeError,
+	InvalidDateError,
+	InvalidNameError,
+	InvalidValueError,
+} from "./errors";
+import type { CookieAttributes, CookieHeader, CookiePrefix } from "./types";
 
 export const COOKIE_SEPARATORS = /[;,]/;
 export const NAME_VALUE_MATCHER = /^([^=]+)=(.*)$/s;
@@ -14,15 +19,13 @@ export function formatHttpDate(date: Date): string {
 	return date.toUTCString();
 }
 
-// Cookie name should not contain control characters, separators, or whitespace
-// RFC 6265bis allows most characters except control chars and separators, so basically HTTP tokens as per RFC 2616
-// biome-ignore lint/suspicious/noControlCharactersInRegex: as above
-const INVALID_CHARACTERS = /[\x00-\x1F\x7F()<>@,;:\\"/[\]?={}\s]/;
+// RFC 6265bis cookie-name is an HTTP token: visible ASCII excluding separators.
+const COOKIE_NAME = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
 export function isValidCookieName(name: string | undefined): name is string {
-	return !!name && !INVALID_CHARACTERS.test(name);
+	return !!name && COOKIE_NAME.test(name);
 }
 
-// biome-ignore lint/suspicious/noControlCharactersInRegex: simmilar as above
+// biome-ignore lint/suspicious/noControlCharactersInRegex: same control range as cookie-name validation.
 const INVALID_DOMAIN_CHARACTERS = /[\x00-\x20\x7F;,]/;
 const DOMAIN_LABEL = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/;
 export function isValidCookieDomain(domain: string): boolean {
@@ -36,10 +39,10 @@ export function isValidCookieDomain(domain: string): boolean {
 	);
 }
 
-// biome-ignore lint/suspicious/noControlCharactersInRegex: simmilar as above
-const INVALID_PATH_CHARACTERS = /[\x00-\x1F\x7F;]/;
+// RFC 6265bis av-octet is visible US-ASCII plus space, excluding semicolon.
+const COOKIE_ATTRIBUTE_VALUE = /^[\x20-\x3A\x3C-\x7E]+$/;
 export function isValidCookiePath(path: string): boolean {
-	return !!path && !INVALID_PATH_CHARACTERS.test(path);
+	return COOKIE_ATTRIBUTE_VALUE.test(path);
 }
 
 export function isValidMaxAge(maxAge: number): boolean {
@@ -48,7 +51,7 @@ export function isValidMaxAge(maxAge: number): boolean {
 
 const ESCAPE_CHARACTERS = /\\(.)/g;
 function unquoteCookieValue(value: string): string {
-	// make sure the value is AT least both quotes
+	// must be at least both quotes
 	if (value.length < 2 || !value.startsWith('"') || !value.endsWith('"')) {
 		return value;
 	}
@@ -58,20 +61,18 @@ function unquoteCookieValue(value: string): string {
 }
 
 export function decodeCookieValue(value: string): string {
-	// if empty short circuit
 	if (!value) return "";
 
-	// unquote the value, odds are it still could be encoded
 	const unquotedValue = unquoteCookieValue(value);
 
-	if (unquotedValue.indexOf("%") === -1) {
+	if (!unquotedValue.includes("%")) {
 		return unquotedValue;
 	}
 
 	try {
-		// the is not required per-se by the RFC, but a lot of implementations do this
+		// not strictly required by the RFC, but a lot of implementations do this
 		return decodeURIComponent(unquotedValue);
-	} catch (_) {
+	} catch {
 		return unquotedValue;
 	}
 }
@@ -80,18 +81,41 @@ export function decodeCookieValue(value: string): string {
 const NEEDS_ENCODING = /[^\x21\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]|%/;
 
 export function encodeCookieValue(value: string): string {
-	if (NEEDS_ENCODING.test(value)) {
-		return encodeURIComponent(value);
+	if (!NEEDS_ENCODING.test(value)) {
+		return value;
 	}
 
-	return value;
+	try {
+		// encodeURIComponent throws on lone surrogates
+		return encodeURIComponent(value);
+	} catch {
+		throw new InvalidValueError();
+	}
 }
 
 // RFC 6265 values, lowercase for ease of use, later capitalized for serialization
 export const VALID_SAME_SITE_VALUES = ["strict", "lax", "none"] as const;
 export const VALID_PRIORITY_VALUES = ["low", "medium", "high"] as const;
+export const VALID_PREFIX_VALUES = ["secure", "host"] as const;
 
-// Helper, internally lowercase values for comparison
+// RFC 6265bis cookie prefixes are case-sensitive on the wire.
+export function isSecureCookieName(name: string): boolean {
+	return name.startsWith("__Secure-");
+}
+
+export function isHostCookieName(name: string): boolean {
+	return name.startsWith("__Host-");
+}
+
+export function prefixCookieName(
+	name: string,
+	prefix: CookiePrefix | undefined,
+): string {
+	if (prefix === "secure") return `__Secure-${name}`;
+	if (prefix === "host") return `__Host-${name}`;
+	return name;
+}
+
 export function lowercase<T extends string>(str: T): Lowercase<T> {
 	return str.toLowerCase() as Lowercase<T>;
 }
@@ -106,13 +130,121 @@ export function newObject<T extends object>(): T {
 
 export function entries<
 	K extends string,
-	T extends MaybeReadonly<Record<K, unknown>>,
+	T extends Readonly<Record<K, unknown>>,
 >(obj: Record<K, unknown> & T): [K, T[K]][] {
 	return Object.entries(obj) as [K, T[K]][];
 }
 
-export function keys<K extends string>(
-	obj: MaybeReadonly<Record<K, unknown>>,
-): K[] {
+export function keys<K extends string>(obj: Readonly<Record<K, unknown>>): K[] {
 	return Object.keys(obj) as K[];
+}
+
+/**
+ * Maps a schema name + definition to its wire name and prefix-derived
+ * `secure`/`path` defaults.
+ */
+export function resolveWire(
+	name: string,
+	definition: Readonly<{ prefix?: CookiePrefix }> | undefined,
+): { wireName: string; secure: boolean; path: string | undefined } {
+	if (definition?.prefix === undefined) {
+		return { wireName: name, secure: false, path: undefined };
+	}
+
+	const prefix = lowercase(definition.prefix);
+	if (!VALID_PREFIX_VALUES.includes(prefix)) {
+		throw new InvalidAttributeError("prefix", prefix, VALID_PREFIX_VALUES);
+	}
+
+	return {
+		wireName: prefixCookieName(name, prefix),
+		secure: true,
+		path: prefix === "host" ? "/" : undefined,
+	};
+}
+
+export function normalizeCookieHeader(
+	cookieHeader: CookieHeader,
+): string | undefined {
+	if (!cookieHeader) {
+		return undefined;
+	}
+
+	if (typeof cookieHeader === "string") {
+		return cookieHeader;
+	}
+
+	return cookieHeader.join("; ");
+}
+
+/**
+ * Validates a wire-form cookie name and its attributes against RFC 6265bis.
+ * Returns the resolved `secure` and `path`.
+ */
+export function validateAttributes(
+	name: string,
+	attrs: Omit<CookieAttributes, "expires"> | undefined,
+): { secure: boolean; path: string | undefined } {
+	if (!isValidCookieName(name)) {
+		throw new InvalidNameError(name);
+	}
+
+	const secure = !!attrs?.secure;
+	const path =
+		isHostCookieName(name) && attrs?.path === undefined ? "/" : attrs?.path;
+
+	if (isSecureCookieName(name) && !secure) {
+		throw new InvalidAttributeError("__Secure- prefix", "missing Secure");
+	}
+
+	if (isHostCookieName(name)) {
+		if (!secure) {
+			throw new InvalidAttributeError("__Host- prefix", "missing Secure");
+		}
+		if (attrs?.domain !== undefined) {
+			throw new InvalidAttributeError("__Host- prefix", "Domain");
+		}
+		if (path !== "/") {
+			throw new InvalidAttributeError("__Host- prefix", "Path must be /");
+		}
+	}
+
+	if (attrs?.domain !== undefined && !isValidCookieDomain(attrs.domain)) {
+		throw new InvalidAttributeError("domain", attrs.domain);
+	}
+
+	if (path !== undefined && !isValidCookiePath(path)) {
+		throw new InvalidAttributeError("path", path);
+	}
+
+	if (attrs?.maxAge !== undefined && !isValidMaxAge(attrs.maxAge)) {
+		throw new InvalidAttributeError("maxAge", String(attrs.maxAge));
+	}
+
+	if (attrs?.priority !== undefined) {
+		const lower = lowercase(attrs.priority);
+		if (!VALID_PRIORITY_VALUES.includes(lower)) {
+			throw new InvalidAttributeError("priority", lower, VALID_PRIORITY_VALUES);
+		}
+	}
+
+	if (attrs?.sameSite !== undefined) {
+		const lower = lowercase(attrs.sameSite);
+		if (!VALID_SAME_SITE_VALUES.includes(lower)) {
+			throw new InvalidAttributeError(
+				"SameSite",
+				lower,
+				VALID_SAME_SITE_VALUES,
+			);
+		}
+		if (lower === "none" && !secure) {
+			throw new InvalidAttributeError("SameSite=None", "missing Secure");
+		}
+	}
+
+	if (attrs?.partitioned && !secure) {
+		throw new InvalidAttributeError("Partitioned", "missing Secure");
+	}
+
+	return { secure, path };
 }

@@ -1,37 +1,39 @@
-import { InvalidAttributeError, InvalidNameError } from "./errors";
 import {
 	COOKIE_SEPARATORS,
 	capitalize,
 	decodeCookieValue,
 	encodeCookieValue,
 	formatHttpDate,
-	isValidCookieDomain,
 	isValidCookieName,
-	isValidCookiePath,
-	isValidMaxAge,
 	lowercase,
 	NAME_VALUE_MATCHER,
 	newObject,
-	VALID_PRIORITY_VALUES,
-	VALID_SAME_SITE_VALUES,
+	normalizeCookieHeader,
+	validateAttributes,
 } from "./helpers";
-import type { CookieAttributes, Cookies, CookieValue } from "./types";
+import type {
+	CookieAttributes,
+	CookieHeader,
+	Cookies,
+	CookieValue,
+} from "./types";
 
 /**
  * Parses a Cookie header value (multiple cookies from client) into a Cookies object
  *
  * @param cookieHeader The Cookie header value to parse
- * @returns Cookies object with cookie name as key and Cookie object as value
+ * @returns Cookies object with cookie name as key and decoded value
  */
-export function parse(cookieHeader: string | null | undefined): Cookies {
-	// explicity accept null and undefined since the Cookie header is optional
-	if (!cookieHeader || typeof cookieHeader !== "string") {
+export function parse(cookieHeader: CookieHeader): Cookies {
+	const header = normalizeCookieHeader(cookieHeader);
+
+	if (!header) {
 		return {};
 	}
 
 	const cookies = newObject<Cookies>();
 
-	const parts = cookieHeader.split(COOKIE_SEPARATORS);
+	const parts = header.split(COOKIE_SEPARATORS);
 
 	for (const part of parts) {
 		const nameValueMatch = part.match(NAME_VALUE_MATCHER);
@@ -42,7 +44,7 @@ export function parse(cookieHeader: string | null | undefined): Cookies {
 		const trimmedName = name?.trim();
 		if (!isValidCookieName(trimmedName)) continue;
 
-		// if the cookie already exists, skip it
+		// first occurrence wins
 		if (trimmedName in cookies) continue;
 
 		cookies[trimmedName] = decodeCookieValue((value || "").trim());
@@ -64,9 +66,7 @@ export function serialize(
 	value: CookieValue,
 	attributes?: CookieAttributes,
 ): string {
-	if (!isValidCookieName(name)) {
-		throw new InvalidNameError(name);
-	}
+	const { secure, path } = validateAttributes(name, attributes);
 
 	let result = `${name}=${encodeCookieValue(String(value))}`;
 
@@ -75,30 +75,18 @@ export function serialize(
 	}
 
 	if (attributes?.maxAge !== undefined) {
-		if (!isValidMaxAge(attributes.maxAge)) {
-			throw new InvalidAttributeError("maxAge", String(attributes.maxAge));
-		}
-
 		result += `; Max-Age=${attributes.maxAge}`;
 	}
 
 	if (attributes?.domain) {
-		if (!isValidCookieDomain(attributes.domain)) {
-			throw new InvalidAttributeError("domain", attributes.domain);
-		}
-
 		result += `; Domain=${attributes.domain}`;
 	}
 
-	if (attributes?.path) {
-		if (!isValidCookiePath(attributes.path)) {
-			throw new InvalidAttributeError("path", attributes.path);
-		}
-
-		result += `; Path=${attributes.path}`;
+	if (path) {
+		result += `; Path=${path}`;
 	}
 
-	if (attributes?.secure) {
+	if (secure) {
 		result += "; Secure";
 	}
 
@@ -111,27 +99,11 @@ export function serialize(
 	}
 
 	if (attributes?.priority) {
-		const lower = lowercase(attributes.priority);
-
-		if (!VALID_PRIORITY_VALUES.includes(lower)) {
-			throw new InvalidAttributeError("priority", lower, VALID_PRIORITY_VALUES);
-		}
-
-		result += `; Priority=${capitalize(lower)}`;
+		result += `; Priority=${capitalize(lowercase(attributes.priority))}`;
 	}
 
 	if (attributes?.sameSite) {
-		const lower = lowercase(attributes.sameSite);
-
-		if (!VALID_SAME_SITE_VALUES.includes(lower)) {
-			throw new InvalidAttributeError(
-				"SameSite",
-				lower,
-				VALID_SAME_SITE_VALUES,
-			);
-		}
-
-		result += `; SameSite=${capitalize(lower)}`;
+		result += `; SameSite=${capitalize(lowercase(attributes.sameSite))}`;
 	}
 
 	return result;

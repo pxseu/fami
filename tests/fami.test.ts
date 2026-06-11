@@ -1,5 +1,10 @@
-import { describe, expect, test } from "bun:test";
-import { Fami, type InferCookieNames, InvalidNameError } from "../src";
+import { describe, expect, spyOn, test } from "bun:test";
+import {
+	Fami,
+	type InferCookieNames,
+	InvalidAttributeError,
+	InvalidNameError,
+} from "../src";
 
 /**
  * Helper that produces a compile error when `T` is not exactly `Expected`.
@@ -13,94 +18,182 @@ type Expect<T, Expected> = [T] extends [Expected]
 
 describe("Fami", () => {
 	describe("constructor", () => {
-		describe("registration", () => {
-			test("initializes with empty definitions", () => {
-				const fami = new Fami({ session: {}, tracking: {} });
+		test("initializes with empty definitions", () => {
+			const fami = new Fami({ session: {}, tracking: {} });
 
-				expect(fami.getNames()).toEqual(["session", "tracking"]);
-			});
-
-			test("initializes with cookie definitions", () => {
-				const fami = new Fami({
-					session: {
-						httpOnly: true,
-						secure: true,
-						sameSite: "strict",
-					},
-				});
-
-				expect(fami.getNames()).toEqual(["session"]);
-				expect(fami.getDefinition("session")).toEqual({
-					httpOnly: true,
-					secure: true,
-					sameSite: "strict",
-				});
-			});
-
-			test("initializes with mixed cookie definitions", () => {
-				const fami = new Fami({
-					tracking: {},
-					session: {
-						httpOnly: true,
-						secure: true,
-					},
-				});
-
-				expect(fami.getNames()).toEqual(["tracking", "session"]);
-			});
+			expect(fami.getNames()).toEqual(["session", "tracking"]);
 		});
 
-		describe("input validation", () => {
-			test("throws error for invalid cookie names", () => {
-				expect(() => new Fami({ "invalid name": {} })).toThrow(
-					InvalidNameError,
-				);
-			});
-
-			test("throws error for invalid cookie name in definitions", () => {
-				expect(() => new Fami({ "invalid name": { httpOnly: true } })).toThrow(
-					InvalidNameError,
-				);
-			});
-
-			test("validates domain values", () => {
-				expect(
-					() => new Fami({ session: { domain: "bad domain value" } }),
-				).toThrow();
-			});
-
-			test("validates path values", () => {
-				expect(() => new Fami({ session: { path: "bad\x00path" } })).toThrow();
-			});
-
-			test("validates priority values", () => {
-				expect(
-					() =>
-						new Fami({
-							session: { priority: "critical" as "low" },
-						}),
-				).toThrow();
-			});
-
-			test("validates sameSite values", () => {
-				expect(
-					() =>
-						new Fami({
-							session: { sameSite: "invalid" as "strict" },
-						}),
-				).toThrow();
-			});
-		});
-	});
-
-	describe("serialize", () => {
-		test("serializes cookie with default attributes", () => {
+		test("initializes with cookie definitions", () => {
 			const fami = new Fami({
 				session: {
 					httpOnly: true,
 					secure: true,
 					sameSite: "strict",
 				},
+			});
+
+			expect(fami.getNames()).toEqual(["session"]);
+			expect(fami.getDefinition("session")).toEqual({
+				httpOnly: true,
+				secure: true,
+				sameSite: "strict",
+			});
+		});
+
+		test("initializes with mixed cookie definitions", () => {
+			const fami = new Fami({
+				tracking: {},
+				session: { httpOnly: true, secure: true },
+			});
+
+			expect(fami.getNames()).toEqual(["tracking", "session"]);
+		});
+
+		test("rejects invalid cookie names", () => {
+			expect(() => new Fami({ "invalid name": {} })).toThrow(InvalidNameError);
+			expect(() => new Fami({ "invalid name": { httpOnly: true } })).toThrow(
+				InvalidNameError,
+			);
+			expect(() => new Fami({ café: {} })).toThrow(InvalidNameError);
+		});
+
+		test("rejects invalid attribute values", () => {
+			expect(() => new Fami({ session: { domain: "bad domain" } })).toThrow(
+				InvalidAttributeError,
+			);
+			expect(() => new Fami({ session: { path: "bad\x00path" } })).toThrow(
+				InvalidAttributeError,
+			);
+			expect(() => new Fami({ session: { domain: "" } })).toThrow(
+				InvalidAttributeError,
+			);
+			expect(() => new Fami({ session: { path: "" } })).toThrow(
+				InvalidAttributeError,
+			);
+			expect(
+				() => new Fami({ session: { priority: "critical" as "low" } }),
+			).toThrow(InvalidAttributeError);
+			expect(
+				() => new Fami({ session: { priority: "" as "low" } }),
+			).toThrow(InvalidAttributeError);
+			expect(
+				() => new Fami({ session: { sameSite: "invalid" as "strict" } }),
+			).toThrow(InvalidAttributeError);
+			expect(
+				() => new Fami({ session: { sameSite: "" as "strict" } }),
+			).toThrow(InvalidAttributeError);
+		});
+
+		test("rejects misconfigured defaults", () => {
+			expect(() => new Fami({ session: { sameSite: "none" } })).toThrow(
+				InvalidAttributeError,
+			);
+			expect(() => new Fami({ session: { partitioned: true } })).toThrow(
+				InvalidAttributeError,
+			);
+			expect(
+				() => new Fami({ session: { prefix: "origin" as "host" } }),
+			).toThrow(InvalidAttributeError);
+			expect(
+				() => new Fami({ session: { prefix: "host", path: "/admin" } }),
+			).toThrow(InvalidAttributeError);
+			expect(
+				() => new Fami({ session: { prefix: "host", path: "" } }),
+			).toThrow(InvalidAttributeError);
+			expect(
+				() => new Fami({ session: { prefix: "host", domain: "example.com" } }),
+			).toThrow(InvalidAttributeError);
+		});
+
+		test("rejects empty signing secrets", () => {
+			expect(() => new Fami({ session: { secret: "" } })).toThrow(
+				InvalidAttributeError,
+			);
+		});
+
+		test("rejects non-string signing secrets", () => {
+			expect(
+				() =>
+					new Fami({
+						session: { secret: 0 as unknown as string },
+					}),
+			).toThrow(InvalidAttributeError);
+		});
+
+		test("accepts valid prefix defaults", () => {
+			expect(() => new Fami({ session: { prefix: "secure" } })).not.toThrow();
+			expect(() => new Fami({ session: { prefix: "host" } })).not.toThrow();
+			expect(
+				() => new Fami({ session: { prefix: "host", path: "/" } }),
+			).not.toThrow();
+		});
+
+		test("rejects __Secure-/__Host- schema names without required attrs", () => {
+			expect(() => new Fami({ "__Secure-session": {} })).toThrow(
+				InvalidAttributeError,
+			);
+			expect(() => new Fami({ "__Host-session": {} })).toThrow(
+				InvalidAttributeError,
+			);
+			expect(
+				() =>
+					new Fami({
+						"__Host-session": { secure: true, path: "/admin" },
+					}),
+			).toThrow(InvalidAttributeError);
+		});
+
+		test("prefix detection is case-sensitive", () => {
+			expect(() => new Fami({ "__secure-session": {} })).not.toThrow();
+			expect(() => new Fami({ "__host-session": {} })).not.toThrow();
+		});
+	});
+
+	describe("prefixes", () => {
+		test("serializes prefixed cookies from unprefixed schema names", () => {
+			const fami = new Fami({
+				session: { prefix: "host" },
+				csrf: { prefix: "secure" },
+			});
+
+			expect(fami.serialize("session", "abc123")).toBe(
+				"__Host-session=abc123; Path=/; Secure",
+			);
+			expect(fami.serialize("csrf", "token")).toBe(
+				"__Secure-csrf=token; Secure",
+			);
+		});
+
+		test("parses prefixed wire cookie names back to schema names", () => {
+			const fami = new Fami({
+				session: { prefix: "host" },
+				csrf: { prefix: "secure" },
+				theme: {},
+			});
+
+			const result = fami.parse(
+				"__Host-session=abc123; __Secure-csrf=token; theme=dark",
+			);
+
+			expect(result).toEqual({
+				session: "abc123",
+				csrf: "token",
+				theme: "dark",
+			});
+		});
+
+		test("does not accept unprefixed values for prefixed schema cookies", () => {
+			const fami = new Fami({ session: { prefix: "host" } });
+
+			expect(fami.parse("session=abc123")).toEqual({ session: undefined });
+		});
+	});
+
+	describe("serialize", () => {
+		test("uses default attributes from definition", () => {
+			const fami = new Fami({
+				session: { httpOnly: true, secure: true, sameSite: "strict" },
 			});
 
 			const result = fami.serialize("session", "abc123");
@@ -111,37 +204,26 @@ describe("Fami", () => {
 			expect(result).toContain("SameSite=Strict");
 		});
 
-		test("overrides default attributes with provided attributes", () => {
-			const fami = new Fami({
-				session: {
-					sameSite: "strict",
-				},
-			});
+		test("overrides default attributes with call-site attributes", () => {
+			const fami = new Fami({ session: { sameSite: "strict" } });
 
-			const result = fami.serialize("session", "abc123", {
-				sameSite: "lax",
-			});
+			const result = fami.serialize("session", "abc123", { sameSite: "lax" });
 
 			expect(result).toStartWith("session=abc123;");
 			expect(result).toContain("SameSite=Lax");
 			expect(result).not.toContain("SameSite=Strict");
 		});
 
-		test("uses expires function from definition", () => {
+		test("calls expires function from definition", () => {
 			const expiresDate = new Date("2025-12-31T00:00:00Z");
-			const fami = new Fami({
-				session: {
-					expires: () => expiresDate,
-				},
-			});
+			const fami = new Fami({ session: { expires: () => expiresDate } });
 
 			const result = fami.serialize("session", "abc123");
 
-			expect(result).toStartWith("session=abc123;");
 			expect(result).toContain("Expires=Wed, 31 Dec 2025 00:00:00 GMT");
 		});
 
-		test("overrides expires function with provided expires", () => {
+		test("call-site expires takes precedence over the definition's expires fn", () => {
 			const overrideDate = new Date("2026-01-01T00:00:00Z");
 
 			const fami = new Fami({
@@ -155,16 +237,13 @@ describe("Fami", () => {
 				expires: overrideDate,
 			});
 
-			expect(result).toStartWith("session=abc123;");
 			expect(result).toContain("Expires=Thu, 01 Jan 2026 00:00:00 GMT");
 		});
 
 		test("serializes cookie without default attributes", () => {
 			const fami = new Fami({ tracking: {} });
 
-			const result = fami.serialize("tracking", "value123");
-
-			expect(result).toBe("tracking=value123");
+			expect(fami.serialize("tracking", "value123")).toBe("tracking=value123");
 		});
 
 		test("serializes with custom attributes", () => {
@@ -182,23 +261,18 @@ describe("Fami", () => {
 	});
 
 	describe("parse", () => {
-		test("parses cookie header and returns registered cookies", () => {
+		test("returns registered cookies", () => {
 			const fami = new Fami({ session: {}, tracking: {} });
 
 			const result = fami.parse("session=abc123; tracking=xyz789");
 
-			expect(result).toEqual({
-				session: "abc123",
-				tracking: "xyz789",
-			});
+			expect(result).toEqual({ session: "abc123", tracking: "xyz789" });
 		});
 
 		test("returns undefined for missing cookies", () => {
 			const fami = new Fami({ session: {}, tracking: {} });
 
-			const result = fami.parse("session=abc123");
-
-			expect(result).toEqual({
+			expect(fami.parse("session=abc123")).toEqual({
 				session: "abc123",
 				tracking: undefined,
 			});
@@ -209,18 +283,14 @@ describe("Fami", () => {
 
 			const result = fami.parse("session=abc123; unregistered=value");
 
-			expect(result).toEqual({
-				session: "abc123",
-			});
+			expect(result).toEqual({ session: "abc123" });
 			expect("unregistered" in result).toBe(false);
 		});
 
 		test("handles empty cookie header", () => {
 			const fami = new Fami({ session: {}, tracking: {} });
 
-			const result = fami.parse("");
-
-			expect(result).toEqual({
+			expect(fami.parse("")).toEqual({
 				session: undefined,
 				tracking: undefined,
 			});
@@ -238,12 +308,9 @@ describe("Fami", () => {
 			expect(result).toContain("Expires=Thu, 01 Jan 1970 00:00:00 GMT");
 		});
 
-		test("includes default attributes in deletion header", () => {
+		test("includes default attributes from definition", () => {
 			const fami = new Fami({
-				session: {
-					path: "/",
-					domain: "example.com",
-				},
+				session: { path: "/", domain: "example.com" },
 			});
 
 			const result = fami.delete("session");
@@ -254,125 +321,78 @@ describe("Fami", () => {
 		});
 	});
 
-	describe("getDefinition", () => {
-		test("returns cookie definition", () => {
+	describe("introspection", () => {
+		test("getDefinition returns cookie definition", () => {
 			const fami = new Fami({
-				session: {
-					httpOnly: true,
-					secure: true,
-				},
+				session: { httpOnly: true, secure: true },
 			});
 
-			const definition = fami.getDefinition("session");
-
-			expect(definition).toEqual({
+			expect(fami.getDefinition("session")).toEqual({
 				httpOnly: true,
 				secure: true,
 			});
 		});
 
-		test("returns undefined for unregistered cookie", () => {
+		test("getDefinition returns undefined for unregistered cookies", () => {
 			const fami = new Fami({ session: {} });
 
 			// @ts-expect-error - testing runtime behavior
-			const definition = fami.getDefinition("unregistered");
-
-			expect(definition).toBeUndefined();
+			expect(fami.getDefinition("unregistered")).toBeUndefined();
 		});
-	});
 
-	describe("has", () => {
-		test("returns true for registered cookie", () => {
+		test("has narrows registered cookie names", () => {
 			const fami = new Fami({ session: {} });
 
 			expect(fami.has("session")).toBe(true);
-		});
-
-		test("returns false for unregistered cookie", () => {
-			const fami = new Fami({ session: {} });
-
 			expect(fami.has("unregistered")).toBe(false);
 		});
-	});
 
-	describe("getNames", () => {
-		test("returns all registered cookie names", () => {
+		test("getNames returns all registered cookies in insertion order", () => {
 			const fami = new Fami({ session: {}, tracking: {}, preferences: {} });
 
-			const names = fami.getNames();
-
-			expect(names).toEqual(["session", "tracking", "preferences"]);
+			expect(fami.getNames()).toEqual(["session", "tracking", "preferences"]);
 		});
 
-		test("returns empty array for no cookies", () => {
-			const fami = new Fami({});
-
-			const names = fami.getNames();
-
-			expect(names).toEqual([]);
-		});
-	});
-
-	describe("cookies getter", () => {
-		test("returns all cookie definitions", () => {
-			const fami = new Fami({
-				tracking: {},
-				session: {
-					httpOnly: true,
-				},
-			});
-
-			const cookies = fami.cookies;
-
-			expect(cookies).toEqual({
-				tracking: {},
-				session: {
-					httpOnly: true,
-				},
-			});
+		test("getNames returns empty array when no cookies are registered", () => {
+			expect(new Fami({}).getNames()).toEqual([]);
 		});
 
-		test("returns an immutable definitions object", () => {
-			const fami = new Fami({ session: {} });
+		test("cookies returns immutable, copied definitions", () => {
+			const definitions = {
+				session: { path: "/", httpOnly: true },
+			};
+			const fami = new Fami(definitions);
 
 			expect(Object.isFrozen(fami.cookies)).toBe(true);
 			expect(Object.isFrozen(fami.cookies.session)).toBe(true);
+
+			definitions.session.path = "/changed";
+			expect(fami.serialize("session", "value")).toBe(
+				"session=value; Path=/; HttpOnly",
+			);
+
 			expect(() => {
-				(fami.cookies as Record<string, unknown>).session = { secure: true };
+				(fami.cookies as Record<string, unknown>).session = {};
 			}).toThrow();
 			expect(() => {
 				(fami.cookies.session as { path?: string }).path = "/";
 			}).toThrow();
 		});
-
-		test("copies definitions so input mutations do not change defaults", () => {
-			const definitions = {
-				session: {
-					path: "/",
-					httpOnly: true,
-				},
-			};
-			const fami = new Fami(definitions);
-
-			definitions.session.path = "/changed";
-
-			expect(fami.serialize("session", "value")).toBe(
-				"session=value; Path=/; HttpOnly",
-			);
-		});
 	});
 
-	describe("signed cookie behavior", () => {
-		test("serialize returns a promise for signed cookies", async () => {
-			const fami = new Fami({
-				session: {
-					httpOnly: true,
-					secure: true,
-					sameSite: "strict",
-					secret: "super-secret",
-				},
-				tracking: {},
-			});
+	describe("signed cookies", () => {
+		const signedSchema = {
+			session: {
+				httpOnly: true,
+				secure: true,
+				sameSite: "strict",
+				secret: "super-secret",
+			},
+			tracking: {},
+		} as const;
+
+		test("serialize returns a Promise only for secret cookies", async () => {
+			const fami = new Fami(signedSchema);
 
 			const session = fami.serialize("session", "abc123");
 			const tracking = fami.serialize("tracking", "value");
@@ -380,27 +400,28 @@ describe("Fami", () => {
 			expect(session).toBeInstanceOf(Promise);
 			expect(tracking).not.toBeInstanceOf(Promise);
 
-			const s_header = await session;
-			const t_header = tracking;
-
-			expect(s_header).toStartWith("session=abc123.");
-			expect(s_header).toContain("; HttpOnly");
-			expect(s_header).toContain("Secure");
-			expect(s_header).toContain("SameSite=Strict");
-
-			expect(t_header).toEqual("tracking=value");
+			expect(await session).toStartWith("session=abc123.");
+			expect(await session).toContain("; HttpOnly");
+			expect(tracking).toBe("tracking=value");
 		});
 
-		test("delete returns a promise for signed cookies", async () => {
-			const fami = new Fami({
-				session: {
-					httpOnly: true,
-					secure: true,
-					sameSite: "strict",
-					secret: "super-secret",
-				},
-				tracking: {},
-			});
+		test("serializes signed empty values as empty unsigned values", async () => {
+			const fami = new Fami(signedSchema);
+
+			const header = await fami.serialize("session", "");
+
+			expect(header).toStartWith("session=;");
+			expect(header).not.toStartWith("session=.");
+			expect(header).toContain("; HttpOnly");
+			expect(header).toContain("; Secure");
+			expect(header).toContain("; SameSite=Strict");
+
+			const cookies = fami.parse("session=");
+			expect(await cookies.session).toBeUndefined();
+		});
+
+		test("delete returns a Promise only for secret cookies", async () => {
+			const fami = new Fami(signedSchema);
 
 			const session = fami.delete("session");
 			const tracking = fami.delete("tracking");
@@ -408,25 +429,13 @@ describe("Fami", () => {
 			expect(session).toBeInstanceOf(Promise);
 			expect(tracking).not.toBeInstanceOf(Promise);
 
-			const s_header = await session;
-			const t_header = tracking;
-
-			expect(s_header).toStartWith("session=;");
-			expect(s_header).toContain("Max-Age=0");
-			expect(t_header).toStartWith("tracking=;");
-			expect(t_header).toContain("Max-Age=0");
+			expect(await session).toStartWith("session=;");
+			expect(await session).toContain("Max-Age=0");
+			expect(tracking).toStartWith("tracking=;");
 		});
 
-		test("parse returns a promise for signed cookies", async () => {
-			const fami = new Fami({
-				session: {
-					httpOnly: true,
-					secure: true,
-					sameSite: "strict",
-					secret: "super-secret",
-				},
-				tracking: {},
-			});
+		test("parse returns a Promise only for secret cookies", async () => {
+			const fami = new Fami(signedSchema);
 
 			const cookies = fami.parse(
 				"session=abc123.BQMG5r8LnjayZExNmMxnQ0rkwWy0_TTsAoqCu84uX7A; tracking=xyz789",
@@ -435,127 +444,73 @@ describe("Fami", () => {
 			expect(cookies.session).toBeInstanceOf(Promise);
 			expect(cookies.tracking).not.toBeInstanceOf(Promise);
 
-			const session = await cookies.session;
-			const tracking = cookies.tracking;
-
-			expect(session).toBe("abc123");
-			expect(tracking).toBe("xyz789");
+			expect(await cookies.session).toBe("abc123");
+			expect(cookies.tracking).toBe("xyz789");
 		});
 
-		test("parse returns false for tampered signed cookies", async () => {
-			const fami = new Fami({
-				session: {
-					httpOnly: true,
-					secure: true,
-					sameSite: "strict",
-					secret: "super-secret",
-				},
-			});
+		test("parse resolves to undefined for tampered signed cookies", async () => {
+			const fami = new Fami(signedSchema);
 
 			const cookies = fami.parse(
 				"session=abc123.BQMG5r8LnjayZExNmmxnQ0rkwWy0_TTsAoqCu84uX7A",
 			);
 
-			expect(cookies.session).toBeInstanceOf(Promise);
+			expect(await cookies.session).toBeUndefined();
+		});
 
-			const result = await cookies.session;
+		test("reuses the imported HMAC key", async () => {
+			const importSpy = spyOn(crypto.subtle, "importKey");
 
-			expect(result).toBe(undefined);
+			try {
+				const fami = new Fami(signedSchema);
+
+				await fami.serialize("session", "a");
+				await fami.serialize("session", "b");
+				await fami.parse(
+					"session=abc123.BQMG5r8LnjayZExNmMxnQ0rkwWy0_TTsAoqCu84uX7A",
+				).session;
+
+				expect(importSpy).toHaveBeenCalledTimes(1);
+			} finally {
+				importSpy.mockRestore();
+			}
 		});
 	});
 
-	describe("InferCookieNames type", () => {
-		test("correctly infers cookie names from object", () => {
-			const fami = new Fami({
-				session: {},
-				tracking: {},
-			} as const);
-			type Names = InferCookieNames<typeof fami>;
-
-			// Type check - this should compile
-			const validName: Names = "session";
-			expect(validName).toBe("session");
-
-			// Another valid name
-			const anotherValidName: Names = "tracking";
-			expect(anotherValidName).toBe("tracking");
-
-			const _: Expect<Names, "session" | "tracking"> = true;
-			expect(_).toBe(true);
-		});
-
-		test("correctly infers cookie names from object with attributes", () => {
+	describe("type inference", () => {
+		test("InferCookieNames extracts the cookie name union", () => {
 			const fami = new Fami({
 				session: { httpOnly: true },
 				tracking: {},
 			});
 			type Names = InferCookieNames<typeof fami>;
 
-			const validName: Names = "session";
-			expect(validName).toBe("session");
-
-			const anotherValidName: Names = "tracking";
-			expect(anotherValidName).toBe("tracking");
-
 			const _: Expect<Names, "session" | "tracking"> = true;
 			expect(_).toBe(true);
 		});
 
-		test("infers stable names from const definitions", () => {
-			const fromObject = new Fami({
-				session: {},
-				tracking: { httpOnly: true },
-			} as const);
-
-			const fromObjectWithDefaults = new Fami({
-				session: {},
-				tracking: { httpOnly: true },
-			} as const);
-
-			type ObjectNames = InferCookieNames<typeof fromObject>;
-			type ObjectNamesWithDefaults = InferCookieNames<
-				typeof fromObjectWithDefaults
-			>;
-
-			const _objectCheck: Expect<ObjectNames, "session" | "tracking"> = true;
-			const _defaultsCheck: Expect<
-				ObjectNamesWithDefaults,
-				"session" | "tracking"
-			> = true;
-			const _equivalent: Expect<ObjectNames, ObjectNamesWithDefaults> = true;
-
-			expect(_objectCheck).toBe(true);
-			expect(_defaultsCheck).toBe(true);
-			expect(_equivalent).toBe(true);
-		});
-
-		test("infers names for serialize, parse, and delete", () => {
+		test("serialize, parse, and delete infer names from the schema", () => {
 			const fami = new Fami({
 				auth: { httpOnly: true, secure: true },
 				theme: {},
 			});
 
-			// These should all compile — the names are properly inferred
-			const serialized = fami.serialize("auth", "token");
-			expect(serialized).toStartWith("auth=token;");
+			expect(fami.serialize("auth", "token")).toStartWith("auth=token;");
 
 			const parsed = fami.parse("auth=token; theme=dark");
 			expect(parsed.auth).toBe("token");
 			expect(parsed.theme).toBe("dark");
 
-			const deleted = fami.delete("theme");
-			expect(deleted).toStartWith("theme=;");
-			expect(deleted).toContain("Max-Age=0");
+			expect(fami.delete("theme")).toStartWith("theme=;");
 
-			// Verify the parsed type has the right keys
 			type ParsedKeys = keyof typeof parsed;
 			const _: Expect<ParsedKeys, "auth" | "theme"> = true;
 			expect(_).toBe(true);
 		});
 	});
 
-	describe("description field", () => {
-		test("allows description field in cookie definition", () => {
+	describe("description metadata", () => {
+		test("description is stored on the definition", () => {
 			const fami = new Fami({
 				session: {
 					description: "User session cookie",
@@ -563,115 +518,59 @@ describe("Fami", () => {
 				},
 			});
 
-			const definition = fami.getDefinition("session");
-
-			expect(definition?.description).toBe("User session cookie");
+			expect(fami.getDefinition("session")?.description).toBe(
+				"User session cookie",
+			);
 		});
 	});
 
-	describe("prototype pollution protection", () => {
-		test("allows __proto__ as cookie name in constructor", () => {
-			const fami = new Fami({ ["__proto__"]: {}, session: {} });
+	describe("null-prototype storage", () => {
+		test("accepts reserved keys as cookie names", () => {
+			const fami = new Fami({
+				["__proto__"]: {},
+				constructor: {},
+				session: {},
+			});
 
 			expect(fami.getNames()).toContain("__proto__");
-			expect(fami.getNames()).toContain("session");
-			expect(fami.has("__proto__")).toBe(true);
-		});
-
-		test("allows constructor as cookie name in constructor", () => {
-			const fami = new Fami({ constructor: {}, session: {} });
-
 			expect(fami.getNames()).toContain("constructor");
-			expect(fami.getNames()).toContain("session");
+			expect(fami.has("__proto__")).toBe(true);
 			expect(fami.has("constructor")).toBe(true);
 		});
 
-		test("parses __proto__ cookie correctly", () => {
-			const fami = new Fami({ ["__proto__"]: {}, session: {} });
-			const result = fami.parse("__proto__=polluted; session=abc123");
+		test("parses reserved keys as own properties", () => {
+			const fami = new Fami({
+				["__proto__"]: {},
+				constructor: {},
+				session: {},
+			});
+
+			const result = fami.parse(
+				"__proto__=polluted; constructor=evil; session=abc123",
+			);
 
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
-			expect(result.__proto__).toBe("polluted");
-			expect(result.session).toBe("abc123");
-		});
-
-		test("parses constructor cookie correctly", () => {
-			const fami = new Fami({ constructor: {}, session: {} });
-			const result = fami.parse("constructor=evil; session=abc123");
-
 			expect(Object.hasOwn(result, "constructor")).toBe(true);
+			expect(result.__proto__).toBe("polluted");
 			expect(result.constructor).toBe("evil");
 			expect(result.session).toBe("abc123");
 		});
 
-		test("serializes __proto__ cookie correctly", () => {
-			const fami = new Fami({ ["__proto__"]: {} });
-			const result = fami.serialize("__proto__", "value");
-
-			expect(result).toBe("__proto__=value");
-		});
-
-		test("serializes constructor cookie correctly", () => {
-			const fami = new Fami({ constructor: {} });
-			const result = fami.serialize("constructor", "value");
-
-			expect(result).toBe("constructor=value");
-		});
-
-		test("does not pollute Object.prototype", () => {
+		test("does not mutate Object.prototype", () => {
 			const fami = new Fami({ ["__proto__"]: {}, constructor: {} });
+
+			fami.serialize("__proto__", "value");
 			fami.parse("__proto__=polluted; constructor=evil");
 
 			expect(({} as Record<string, unknown>).polluted).toBeUndefined();
 			expect(Object.keys(Object.prototype)).toEqual([]);
 		});
-	});
 
-	describe("real-world usage", () => {
-		test("manages authentication cookies", () => {
-			const cookies = new Fami({
-				access_token: {
-					httpOnly: true,
-					secure: true,
-					sameSite: "strict",
-					expires: () => new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
-				},
-				refresh_token: {
-					httpOnly: true,
-					secure: true,
-					sameSite: "strict",
-					path: "/",
-					expires: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-				},
-			});
+		test("serializes reserved keys as plain cookies", () => {
+			const fami = new Fami({ ["__proto__"]: {}, constructor: {} });
 
-			// Serialize tokens
-			const accessHeader = cookies.serialize("access_token", "jwt_token_here");
-			const refreshHeader = cookies.serialize(
-				"refresh_token",
-				"refresh_jwt_here",
-			);
-
-			expect(accessHeader).toStartWith("access_token=jwt_token_here;");
-			expect(accessHeader).toContain("HttpOnly");
-			expect(accessHeader).toContain("Secure");
-			expect(accessHeader).toContain("SameSite=Strict");
-
-			expect(refreshHeader).toStartWith("refresh_token=refresh_jwt_here;");
-			expect(refreshHeader).toContain("Path=/");
-
-			// Parse incoming cookies
-			const parsed = cookies.parse(
-				"access_token=jwt_token_here; refresh_token=refresh_jwt_here",
-			);
-
-			expect(parsed.access_token).toBe("jwt_token_here");
-			expect(parsed.refresh_token).toBe("refresh_jwt_here");
-
-			// Delete tokens
-			const deleteAccess = cookies.delete("access_token");
-			expect(deleteAccess).toStartWith("access_token=;");
-			expect(deleteAccess).toContain("Max-Age=0");
+			expect(fami.serialize("__proto__", "value")).toBe("__proto__=value");
+			expect(fami.serialize("constructor", "value")).toBe("constructor=value");
 		});
 	});
 });

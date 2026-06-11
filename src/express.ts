@@ -7,10 +7,9 @@ import {
 } from "./fami";
 import type { CookieAttributes, CookieValue, MaybePromise } from "./types";
 
-export type ExpressRequestStub = { headers: { cookie?: string } };
+export type ExpressRequestStub = { headers: { cookie?: string | string[] } };
 export type ExpressResponseStub = {
 	append(name: string, value: string): unknown;
-	writeHead(...args: unknown[]): unknown;
 };
 export type NextFunctionStub = (err?: unknown) => void;
 
@@ -33,23 +32,20 @@ export type FamiRequest<
 };
 
 /**
- * Properties added to the response object by the Fami middleware
+ * Properties added to the response object by the Fami middleware.
+ *
+ * Both methods append a `Set-Cookie` header immediately, returning a
+ * `Promise<void>` for signed cookies — await it before sending the response.
  */
 export type FamiResponse<
 	CookieName extends string,
 	Definition extends FamiInput<CookieName>,
 > = {
 	/**
-	 * The cookie jar containing resolved Set-Cookie header values.
-	 * Keyed by cookie name -- only the last operation per cookie is kept.
-	 * Inspect this before the response is sent to see what cookies will be set.
-	 */
-	readonly cookieJar: ReadonlyMap<CookieName, string>;
-	/**
-	 * Create a Set-Cookie header value with the given name, value, and attributes, and add it to the cookie jar.
-	 * The jar is flushed to Set-Cookie headers when the response is sent.
+	 * Serialize a cookie with the given name, value, and attributes, then
+	 * append the resulting `Set-Cookie` header to the response.
 	 *
-	 * For signed cookies, this returns a Promise. Await it before the response is sent.
+	 * For signed cookies, returns a `Promise<void>` — await it before sending.
 	 */
 	setCookie<Name extends CookieName>(
 		name: Name,
@@ -57,7 +53,10 @@ export type FamiResponse<
 		attributes?: CookieAttributes,
 	): PromiseIfSecret<Name, Definition, void>;
 	/**
-	 *  Create a Set-Cookie header value that removes the cookie from the client (set maxAge to 0 and expires to `new Date(0)`)
+	 * Append a `Set-Cookie` header that removes the cookie from the client
+	 * (sets `Max-Age=0` and `Expires=new Date(0)`).
+	 *
+	 * For signed cookies, returns a `Promise<void>` — await it before sending.
 	 */
 	deleteCookie<Name extends CookieName>(
 		name: Name,
@@ -77,10 +76,7 @@ export type FamiExpress<
 	 * Must be applied via `app.use()` before routes that use `fami.handler()`.
 	 *
 	 * Adds to `req`: `fami` (Fami instance), `cookies` (lazy parsed cookies)
-	 * Adds to `res`: `setCookie()`, `deleteCookie()`, `cookieJar` (pending cookies)
-	 *
-	 * The middleware patches `res.writeHead` to flush the cookie jar to `Set-Cookie` headers
-	 * right before the response headers are sent.
+	 * Adds to `res`: `setCookie()`, `deleteCookie()`
 	 */
 	middleware(): (
 		req: ExpressRequestStub,
@@ -91,7 +87,7 @@ export type FamiExpress<
 	/**
 	 * Type-safe handler wrapper. The middleware must be applied first via `app.use()`.
 	 * This is an identity function at runtime (zero cost) -- it only narrows TypeScript types
-	 * so that `req.cookies`, `req.fami`, `res.setCookie()`, `res.deleteCookie()` and `res.cookieJar`
+	 * so that `req.cookies`, `req.fami`, `res.setCookie()`, and `res.deleteCookie()`
 	 * are properly typed, while preserving full Express `Request` and `Response` autocomplete.
 	 *
 	 * @example
@@ -120,7 +116,7 @@ function createRequest<
 >(req: ExpressRequestStub, fami: Fami<CookieName, Definition>) {
 	let lazyCookies: FamiCookies<CookieName, Definition> | undefined;
 
-	Object.defineProperties(req, {
+	install(req, {
 		fami: {
 			get: () => fami,
 			configurable: false,
@@ -140,81 +136,38 @@ function createResponse<
 	CookieName extends string,
 	Definition extends FamiInput<CookieName>,
 >(res: ExpressResponseStub, fami: Fami<CookieName, Definition>) {
-	const jar = new Map<CookieName, string>();
-	const pending = new Map<CookieName, Promise<void>>();
-	const operationId = new Map<CookieName, number>();
-	let counter = 0;
-	const originalWriteHead = res.writeHead;
-
-	function queueHeader(
-		name: CookieName,
-		header: MaybePromise<string>,
-	): Promise<void> | undefined {
-		const id = ++counter;
-		operationId.set(name, id);
-
+	function appendHeader(header: MaybePromise<string>): MaybePromise<void> {
 		if (header instanceof Promise) {
-			const operation = header
-				.then((resolvedHeader) => {
-					if (operationId.get(name) !== id) {
-						return;
-					}
-
-					jar.set(name, resolvedHeader);
-				})
-				.finally(() => {
-					if (operationId.get(name) !== id) {
-						return;
-					}
-
-					pending.delete(name);
-				});
-
-			pending.set(name, operation);
-			return operation;
+			return header.then((h) => {
+				res.append("Set-Cookie", h);
+			});
 		}
 
-		pending.delete(name);
-		jar.set(name, header);
-		return undefined;
+		res.append("Set-Cookie", header);
 	}
 
-	Object.defineProperties(res, {
+	install(res, {
 		setCookie: {
-			value: (...args: Parameters<typeof fami.serialize>) => {
-				return queueHeader(args[0], fami.serialize(...args));
-			},
+			value: (...args: Parameters<typeof fami.serialize>) =>
+				appendHeader(fami.serialize(...args)),
 			configurable: false,
 		},
 		deleteCookie: {
-			value: (...args: Parameters<typeof fami.delete>) => {
-				return queueHeader(args[0], fami.delete(...args));
-			},
+			value: (...args: Parameters<typeof fami.delete>) =>
+				appendHeader(fami.delete(...args)),
 			configurable: false,
-		},
-		cookieJar: {
-			get: () => jar,
-			configurable: false,
-		},
-		writeHead: {
-			value: function (this: ExpressResponseStub, ...args: unknown[]) {
-				if (pending.size > 0) {
-					throw new Error(
-						"Signed cookies still pending. Await res.setCookie()/res.deleteCookie() before sending response.",
-					);
-				}
-
-				for (const value of jar.values()) {
-					this.append("Set-Cookie", value);
-				}
-
-				jar.clear();
-
-				return originalWriteHead.apply(this, args);
-			},
-			configurable: true,
 		},
 	});
+}
+
+function install(target: object, properties: PropertyDescriptorMap) {
+	for (const name of Object.keys(properties)) {
+		if (Object.hasOwn(target, name)) {
+			throw new Error(`Fami Express middleware cannot install ${name}`);
+		}
+	}
+
+	Object.defineProperties(target, properties);
 }
 
 /**
@@ -252,7 +205,7 @@ export function fami<
 		| (FamiInput<CookieName> & Definition)
 		| Fami<CookieName, Definition>,
 ): FamiExpress<CookieName, Definition> {
-	const fami = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
+	const f = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 
 	return {
 		middleware() {
@@ -261,8 +214,9 @@ export function fami<
 				res: ExpressResponseStub,
 				next: NextFunctionStub,
 			) => {
-				createRequest(req, fami);
-				createResponse(res, fami);
+				createRequest(req, f);
+				createResponse(res, f);
+
 				next();
 			};
 		},

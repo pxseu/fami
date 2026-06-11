@@ -4,17 +4,11 @@ import { parse } from "../src";
 describe("parse", () => {
 	describe("basic parsing", () => {
 		test("parses single cookie", () => {
-			const result = parse("test=value");
-
-			expect(result).toEqual({
-				test: "value",
-			});
+			expect(parse("test=value")).toEqual({ test: "value" });
 		});
 
 		test("parses multiple cookies", () => {
-			const result = parse("cookie1=value1; cookie2=value2; cookie3=value3");
-
-			expect(result).toEqual({
+			expect(parse("cookie1=value1; cookie2=value2; cookie3=value3")).toEqual({
 				cookie1: "value1",
 				cookie2: "value2",
 				cookie3: "value3",
@@ -22,209 +16,143 @@ describe("parse", () => {
 		});
 
 		test("handles comma separation (legacy)", () => {
-			const result = parse("cookie1=value1, cookie2=value2");
-
-			expect(result).toEqual({
+			expect(parse("cookie1=value1, cookie2=value2")).toEqual({
 				cookie1: "value1",
 				cookie2: "value2",
 			});
 		});
 
-		test("handles empty values", () => {
-			const result = parse("test=");
-
-			expect(result).toEqual({
-				test: "",
+		test("merges repeated Cookie header fields", () => {
+			expect(
+				parse(["cookie1=value1; cookie2=value2", "cookie3=value3"]),
+			).toEqual({
+				cookie1: "value1",
+				cookie2: "value2",
+				cookie3: "value3",
 			});
+		});
+
+		test("handles empty values", () => {
+			expect(parse("test=")).toEqual({ test: "" });
 		});
 
 		test("handles duplicate cookie names (first one wins)", () => {
-			const result = parse("test=first; test=second; test=third");
-
-			expect(result).toEqual({
+			expect(parse("test=first; test=second; test=third")).toEqual({
 				test: "first",
 			});
-		});
-
-		test("handles duplicate cookie names when first value is empty", () => {
-			const result = parse("test=; test=second");
-
-			expect(result).toEqual({
-				test: "",
-			});
+			expect(parse("test=; test=second")).toEqual({ test: "" });
 		});
 	});
 
 	describe("quoted values", () => {
-		test("handles quoted values", () => {
-			const result = parse('test="quoted value"');
-
-			expect(result).toEqual({
-				test: "quoted value",
-			});
+		test("strips surrounding double quotes", () => {
+			expect(parse('test="quoted value"')).toEqual({ test: "quoted value" });
 		});
 
 		test("treats single quotes as part of the value (not RFC compliant)", () => {
-			const result = parse("test='single quoted'");
-
-			expect(result).toEqual({
+			expect(parse("test='single quoted'")).toEqual({
 				test: "'single quoted'",
 			});
 		});
 
-		test("handles escaped quotes in quoted values", () => {
-			const result = parse('test="value \\"with\\" quotes"');
-
-			expect(result).toEqual({
+		test('unescapes \\" and \\\\ inside quoted values', () => {
+			expect(parse('test="value \\"with\\" quotes"')).toEqual({
 				test: 'value "with" quotes',
 			});
-		});
-
-		test("handles escaped backslashes in quoted values", () => {
-			const result = parse('test="path\\\\to\\\\file"');
-
-			expect(result).toEqual({
+			expect(parse('test="path\\\\to\\\\file"')).toEqual({
 				test: "path\\to\\file",
 			});
 		});
 	});
 
 	describe("special characters", () => {
-		test("handles values with special characters", () => {
-			const result = parse("test=value with spaces");
-
-			expect(result).toEqual({
+		test("preserves spaces, equals, and ^ in values", () => {
+			expect(parse("test=value with spaces")).toEqual({
 				test: "value with spaces",
 			});
+			expect(parse("test=name=value")).toEqual({ test: "name=value" });
+			expect(parse("foo=E=mc^2")).toEqual({ foo: "E=mc^2" });
 		});
 
-		test("handles multiple equals signs in value", () => {
-			const result = parse("test=name=value");
-
-			expect(result).toEqual({
-				test: "name=value",
-			});
-		});
-
-		test("handles tab characters as whitespace", () => {
-			const result = parse("test=value;\tcookie2\t=\tvalue2");
-
-			expect(result).toEqual({
+		test("treats tabs as whitespace", () => {
+			expect(parse("test=value;\tcookie2\t=\tvalue2")).toEqual({
 				test: "value",
 				cookie2: "value2",
 			});
 		});
 
-		test("handles values with = and ^ characters", () => {
-			const result = parse("foo=E=mc^2");
-
-			expect(result).toEqual({
-				foo: "E=mc^2",
-			});
+		test("preserves newlines and carriage returns in values", () => {
+			expect(parse("test=hello\nworld")).toEqual({ test: "hello\nworld" });
+			expect(parse("test=hello\rworld")).toEqual({ test: "hello\rworld" });
 		});
 
-		test("handles values with only opening quote", () => {
-			const result = parse('test="');
-
-			expect(result).toEqual({
-				test: '"',
-			});
+		test("handles a stray opening quote", () => {
+			expect(parse('test="')).toEqual({ test: '"' });
 		});
 
-		test("handles values with newlines", () => {
-			const result = parse("test=hello\nworld");
-
-			expect(result).toEqual({
-				test: "hello\nworld",
+		test("trims whitespace around quoted values", () => {
+			expect(parse('test=      "hello world"        ')).toEqual({
+				test: "hello world",
 			});
-		});
-
-		test("handles values with carriage returns", () => {
-			const result = parse("test=hello\rworld");
-
-			expect(result).toEqual({
-				test: "hello\rworld",
-			});
-		});
-
-		test("handles quoted values with whitespace", () => {
-			const result = parse('test=      "hello world"        ');
-
-			expect(result).toEqual({
+			expect(parse('test=\t\t\t\t"hello world"\t\t\t    ')).toEqual({
 				test: "hello world",
 			});
 		});
 
-		test("handles quoted values with newlines", () => {
-			const result = parse('test="hello\nworld"');
-
-			expect(result).toEqual({
-				test: "hello\nworld",
-			});
-		});
-
-		test("handles quoted values with tabs", () => {
-			const result = parse('test=\t\t\t\t"hello world"\t\t\t    ');
-
-			expect(result).toEqual({
-				test: "hello world",
-			});
+		test("preserves newlines inside quoted values", () => {
+			expect(parse('test="hello\nworld"')).toEqual({ test: "hello\nworld" });
 		});
 	});
 
 	describe("encoded values", () => {
-		test("handles encoded values", () => {
-			const result = parse("foo=bar; equation=E%3Dmc%5E2");
-
-			expect(result).toEqual({
+		test("decodes percent-encoded values", () => {
+			expect(parse("foo=bar; equation=E%3Dmc%5E2")).toEqual({
 				foo: "bar",
 				equation: "E=mc^2",
 			});
 		});
 
-		test("handles encoded values with special characters", () => {
-			const result = parse(`foo="bar%3Bwith%3Bsemicolons"`);
-
-			expect(result).toEqual({
+		test("decodes encoded values inside quotes", () => {
+			expect(parse(`foo="bar%3Bwith%3Bsemicolons"`)).toEqual({
 				foo: "bar;with;semicolons",
 			});
 		});
 	});
 
 	describe("invalid input handling", () => {
-		test("skips invalid cookies in header", () => {
-			const result = parse("valid=cookie; invalid cookie; another=valid");
-
-			expect(result).toEqual({
+		test("skips entries without a valid name=value shape", () => {
+			expect(parse("valid=cookie; invalid cookie; another=valid")).toEqual({
 				valid: "cookie",
 				another: "valid",
 			});
 		});
 
-		test("ignores cookies with invalid names", () => {
-			const result = parse("valid=cookie; test name=value; another=valid");
-
-			expect(result).toEqual({
+		test("skips cookies with invalid names", () => {
+			expect(parse("valid=cookie; test name=value; another=valid")).toEqual({
 				valid: "cookie",
 				another: "valid",
 			});
 		});
 
-		test("returns empty object for invalid input", () => {
+		test("skips cookie names with invalid characters", () => {
+			expect(parse("valid=cookie; café=value; token~=allowed")).toEqual({
+				valid: "cookie",
+				"token~": "allowed",
+			});
+		});
+
+		test("returns empty object for empty or null input", () => {
 			for (const input of ["", "   ", null, undefined]) {
-				const result = parse(input as string);
-				expect(result).toEqual({});
+				expect(parse(input as string)).toEqual({});
 			}
 		});
 	});
 
 	describe("real-world scenarios", () => {
 		test("parses session and CSRF style headers", () => {
-			const result = parse(
-				"sessionid=abc123; csrftoken=def456; user_pref=dark_mode",
-			);
-
-			expect(result).toEqual({
+			expect(
+				parse("sessionid=abc123; csrftoken=def456; user_pref=dark_mode"),
+			).toEqual({
 				sessionid: "abc123",
 				csrftoken: "def456",
 				user_pref: "dark_mode",
@@ -232,55 +160,42 @@ describe("parse", () => {
 		});
 
 		test("parses analytics cookies with dotted values", () => {
-			const result = parse(
-				"_ga=GA1.2.123456789.1234567890; _gid=GA1.2.987654321.0987654321",
-			);
-
-			expect(result).toEqual({
+			expect(
+				parse(
+					"_ga=GA1.2.123456789.1234567890; _gid=GA1.2.987654321.0987654321",
+				),
+			).toEqual({
 				_ga: "GA1.2.123456789.1234567890",
 				_gid: "GA1.2.987654321.0987654321",
 			});
 		});
 
-		test("parses token-like cookie values", () => {
-			const result = parse(
-				"session=eyJhbGciOiJIUzI1NiJ9; auth=bearer_token_here",
-			);
-
-			expect(result).toEqual({
+		test("parses token-like values", () => {
+			expect(
+				parse("session=eyJhbGciOiJIUzI1NiJ9; auth=bearer_token_here"),
+			).toEqual({
 				session: "eyJhbGciOiJIUzI1NiJ9",
 				auth: "bearer_token_here",
 			});
 		});
 	});
 
-	describe("prototype pollution protection", () => {
-		test("handles __proto__ as cookie name", () => {
-			const result = parse("__proto__=polluted; session=abc123");
+	describe("null-prototype storage", () => {
+		test("stores reserved-key cookies as own properties", () => {
+			const result = parse(
+				"__proto__=polluted; constructor=evil; prototype=evil2; session=abc123",
+			);
 
-			expect(result.session).toBe("abc123");
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
-			expect(result.__proto__).toBe("polluted");
-			expect(({} as Record<string, unknown>).polluted).toBeUndefined();
-		});
-
-		test("handles constructor as cookie name", () => {
-			const result = parse("constructor=evil; session=abc123");
-
-			expect(result.session).toBe("abc123");
 			expect(Object.hasOwn(result, "constructor")).toBe(true);
-			expect(result.constructor as unknown as string).toBe("evil");
-		});
-
-		test("handles prototype as cookie name", () => {
-			const result = parse("prototype=evil; session=abc123");
-
-			expect(result.session).toBe("abc123");
 			expect(Object.hasOwn(result, "prototype")).toBe(true);
-			expect((result as Record<string, unknown>).prototype).toBe("evil");
+			expect(result.__proto__).toBe("polluted");
+			expect(result.constructor as unknown as string).toBe("evil");
+			expect((result as Record<string, unknown>).prototype).toBe("evil2");
+			expect(result.session).toBe("abc123");
 		});
 
-		test("handles multiple dangerous keys", () => {
+		test("preserves key order across reserved names", () => {
 			const result = parse(
 				"__proto__=a; constructor=b; prototype=c; __defineGetter__=d",
 			);
@@ -291,11 +206,9 @@ describe("parse", () => {
 				"prototype",
 				"__defineGetter__",
 			]);
-			expect(Object.hasOwn(result, "__proto__")).toBe(true);
-			expect(Object.hasOwn(result, "constructor")).toBe(true);
 		});
 
-		test("does not pollute Object.prototype", () => {
+		test("does not mutate Object.prototype", () => {
 			parse("__proto__=polluted; constructor=evil");
 
 			expect(({} as Record<string, unknown>).polluted).toBeUndefined();

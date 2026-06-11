@@ -9,8 +9,16 @@ export class InvalidNameError extends FamiError {
 	constructor(name?: string) {
 		const message = !name
 			? "Name is required"
-			: `Invalid name: ${name} (must not special characters, separators, or whitespace)`;
+			: `Invalid name: ${name} (must not contain special characters, separators, or whitespace)`;
 		super(message);
+		this.name = "InvalidNameError";
+	}
+}
+
+export class InvalidValueError extends FamiError {
+	constructor() {
+		super("Invalid value; contains characters that cannot be encoded");
+		this.name = "InvalidValueError";
 	}
 }
 
@@ -28,6 +36,7 @@ export class InvalidAttributeError extends FamiError {
 			validValues ? `. Must be one of: ${validValues.join(", ")}` : ""
 		}`;
 		super(message);
+		this.name = "InvalidAttributeError";
 		this.attribute = attribute;
 		this.value = value;
 		this.validValues = validValues;
@@ -37,5 +46,6 @@ export class InvalidAttributeError extends FamiError {
 export class InvalidDateError extends FamiError {
 	constructor() {
 		super("Invalid date; must be a valid Date object");
+		this.name = "InvalidDateError";
 	}
 }

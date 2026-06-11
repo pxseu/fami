@@ -14,6 +14,7 @@ Working with cookies shouldn't be complicated or scary. **fami** makes HTTP cook
 - [Installation](#installation)
 - [Quick Start](#quick-start)
   - [High-level API (recommended)](#high-level-api-recommended)
+  - [Cookie prefixes (`__Secure-` / `__Host-`)](#cookie-prefixes-__secure---__host-)
   - [Signed cookies (async behavior)](#signed-cookies-async-behavior)
   - [Low-level API](#low-level-api)
 - [Framework Integration](#framework-integration)
@@ -126,6 +127,32 @@ const deleteSession = fami.delete("session");
 console.log(deleteSession);
 // "session=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
 ```
+
+### Cookie prefixes (`__Secure-` / `__Host-`)
+
+Set `prefix: "secure"` or `prefix: "host"` on a definition and fami applies the wire-form prefix for you — your schema keys stay unprefixed, and the attributes each prefix requires are enforced at construction time.
+
+```ts
+import { Fami } from "fami";
+
+const fami = new Fami({
+	session: { prefix: "host" },
+	csrf: { prefix: "secure" },
+});
+
+fami.serialize("session", "abc123");
+// "__Host-session=abc123; Path=/; Secure"
+
+fami.serialize("csrf", "token");
+// "__Secure-csrf=token; Secure"
+
+// Parsing maps the wire name back to the schema key
+const cookies = fami.parse("__Host-session=abc123; __Secure-csrf=token");
+cookies.session; // "abc123"
+cookies.csrf; // "token"
+```
+
+`prefix: "host"` enforces `Path=/` and forbids `Domain`; both prefixes require `Secure`. Invalid combinations throw at construction.
 
 ### Signed cookies (async behavior)
 

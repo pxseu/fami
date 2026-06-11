@@ -1,5 +1,5 @@
 import { Fami, type FamiInput, type PromiseIfSecret } from "./fami";
-import type { CookieAttributes, CookieValue } from "./types";
+import type { CookieAttributes, CookieValue, MaybePromise } from "./types";
 
 type NoOverlap<T, U> = {
 	[K in keyof T & keyof U]: never;
@@ -101,39 +101,34 @@ export function fami<
 		req: KaitoRequestStub,
 		head: KaitoHeadStub,
 	): FamiPipeOutput<C, CookieName, Defs> => {
-		// i know this looks so ugly but for now it's the only way to have proper typings for setCookie and deleteCookie
+		function appendHeader(header: MaybePromise<string>): MaybePromise<void> {
+			if (header instanceof Promise) {
+				return header.then((h) => {
+					head.headers.append("Set-Cookie", h);
+				});
+			}
+
+			head.headers.append("Set-Cookie", header);
+		}
+
 		function setCookie<Name extends CookieName>(
-			...args: Parameters<Fami<Name, Defs>["serialize"]>
+			name: Name,
+			value: CookieValue,
+			attributes?: CookieAttributes,
 		): PromiseIfSecret<Name, Defs, void>;
 		function setCookie(
 			name: CookieName,
 			value: CookieValue,
 			attributes?: CookieAttributes,
-		) {
-			const header = f.serialize(name, value, attributes);
-
-			if (header instanceof Promise) {
-				return header.then((h) => {
-					head.headers.append("Set-Cookie", h);
-				});
-			}
-
-			return head.headers.append("Set-Cookie", header);
+		): MaybePromise<void> {
+			return appendHeader(f.serialize(name, value, attributes));
 		}
 
 		function deleteCookie<Name extends CookieName>(
-			...args: Parameters<Fami<Name, Defs>["delete"]>
+			name: Name,
 		): PromiseIfSecret<Name, Defs, void>;
-		function deleteCookie(name: CookieName) {
-			const header = f.delete(name);
-
-			if (header instanceof Promise) {
-				return header.then((h) => {
-					head.headers.append("Set-Cookie", h);
-				});
-			}
-
-			return head.headers.append("Set-Cookie", header);
+		function deleteCookie(name: CookieName): MaybePromise<void> {
+			return appendHeader(f.delete(name));
 		}
 
 		function buildContext<C>(

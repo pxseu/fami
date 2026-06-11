@@ -1,5 +1,6 @@
 const SEPARATOR = ".";
 const ENCODING = "base64url";
+
 const ALGORITHM = { name: "HMAC", hash: "SHA-256" } as const;
 const USAGES = ["sign", "verify"] as const satisfies KeyUsage[];
 
@@ -23,13 +24,13 @@ function to64Url(bytes: ArrayBuffer): string {
 	});
 }
 
-function from64url(str: string): Uint8Array<ArrayBuffer> | false {
+function from64Url(str: string): Uint8Array<ArrayBuffer> | false {
 	try {
 		return Uint8Array.fromBase64(pad64(str), {
 			alphabet: ENCODING,
 			lastChunkHandling: "strict",
 		});
-	} catch (_) {
+	} catch {
 		return false;
 	}
 }
@@ -73,27 +74,27 @@ export async function signPipeline(
 ) {
 	if (!value) return value;
 
-	const crypto_key = await importKey(key);
+	const cryptoKey = await importKey(key);
 
-	return await signValue(crypto_key, value);
+	return signValue(cryptoKey, value);
 }
 
 export async function verifyValue(
 	key: CryptoKey,
 	signedValue: string,
-): Promise<string | false> {
+): Promise<string | undefined> {
 	const lastDotIndex = signedValue.lastIndexOf(SEPARATOR);
 	if (lastDotIndex === -1) {
-		return false;
+		return undefined;
 	}
 
 	const value = signedValue.slice(0, lastDotIndex);
 	const sig = signedValue.slice(lastDotIndex + 1);
 
-	const bytes = from64url(sig);
+	const bytes = from64Url(sig);
 
 	if (!bytes) {
-		return false;
+		return undefined;
 	}
 
 	const valid = await crypto.subtle.verify(
@@ -103,18 +104,14 @@ export async function verifyValue(
 		encoder.encode(value),
 	);
 
-	return valid ? value : false;
+	return valid ? value : undefined;
 }
 
 export async function verifyPipeline(
 	key: string | CryptoKey | Promise<CryptoKey>,
-	signedValue?: string,
-) {
-	if (!signedValue) {
-		return false;
-	}
+	signedValue: string,
+): Promise<string | undefined> {
+	const cryptoKey = await importKey(key);
 
-	const crypto_key = await importKey(key);
-
-	return await verifyValue(crypto_key, signedValue);
+	return verifyValue(cryptoKey, signedValue);
 }

@@ -1,19 +1,19 @@
-import { signPipeline, verifyPipeline } from "./crypto";
-import { FamiError, InvalidAttributeError, InvalidNameError } from "./errors";
+import { importKey, signPipeline, verifyPipeline } from "./crypto";
+import { InvalidAttributeError } from "./errors";
 import {
 	entries,
-	isValidCookieDomain,
-	isValidCookieName,
-	isValidCookiePath,
-	isValidMaxAge,
 	keys,
-	lowercase,
 	newObject,
-	VALID_PRIORITY_VALUES,
-	VALID_SAME_SITE_VALUES,
+	resolveWire,
+	validateAttributes,
 } from "./helpers";
 import { parse as parseRaw, serialize as serializeRaw } from "./parser";
-import type { CookieAttributes, CookieValue, MaybePromise } from "./types";
+import type {
+	CookieAttributes,
+	CookiePrefix,
+	CookieValue,
+	MaybePromise,
+} from "./types";
 
 /**
  * Fami cookies object. Can be used to access parsed cookie values with correct types, including promise types for secret cookies.
@@ -29,8 +29,7 @@ export type FamiCookies<
 	[C in CookieName]: PromiseIfSecret<C, Defs, string | undefined>;
 };
 
-// Phantom type to ensure the name is "used" by TypeScript
-export type CookieDefinition<_ extends string> = Partial<{
+export type CookieDefinition = Partial<{
 	/**
 	 * A description of the cookie.
 	 *
@@ -54,7 +53,21 @@ export type CookieDefinition<_ extends string> = Partial<{
 	 */
 	expires: () => Date;
 
+	/**
+	 * A secret used to HMAC-SHA256 sign the cookie value. When set, `serialize`,
+	 * `delete`, and `parse` for this cookie become asynchronous.
+	 */
 	secret: string;
+
+	/**
+	 * Apply an RFC 6265bis name prefix on the wire. `"secure"` produces
+	 * `__Secure-<name>` and forces `Secure`; `"host"` produces `__Host-<name>`,
+	 * forces `Secure` and `Path=/`, and forbids `Domain`. Fami maps the wire name
+	 * back to the schema name on parse.
+	 *
+	 * @see https://developer.mozilla.org/docs/Web/HTTP/Guides/Cookies#cookie_prefixes
+	 */
+	prefix: CookiePrefix;
 }> &
 	Omit<CookieAttributes, "expires">;
 
@@ -65,7 +78,7 @@ export type CookieDefinition<_ extends string> = Partial<{
  * default attributes (e.g. `httpOnly`, `secure`, `sameSite`, `expires`, `secret`) for that cookie.
  */
 export type FamiInput<Name extends string> = {
-	readonly [K in Name]: CookieDefinition<K>;
+	readonly [K in Name]: CookieDefinition;
 };
 
 /**
@@ -126,59 +139,31 @@ export class Fami<
 > {
 	readonly #cookies: Readonly<Definition>;
 
+	// cache imported HMAC keys by secret, so we import once instead of per operation
+	readonly #keyCache = new Map<string, Promise<CryptoKey>>();
+
 	/**
-	 * @param cookieDefinitions An object mapping cookie names to definitions
+	 * @param input An object mapping cookie names to definitions
 	 */
 	constructor(input: FamiInput<CookieName> & Definition) {
 		// freeze the cookies object to prevent mutation via the public API
 		this.#cookies = Object.freeze(
 			entries(input).reduce((cookies, [name, definition]) => {
-				if (cookies[name]) {
-					throw new FamiError(`Cookie name ${name} is already registered`);
-				}
-
-				if (!isValidCookieName(name)) {
-					throw new InvalidNameError(name);
-				}
-
-				if (definition?.domain && !isValidCookieDomain(definition.domain)) {
-					throw new InvalidAttributeError("domain", definition.domain);
-				}
-
-				if (definition?.path && !isValidCookiePath(definition.path)) {
-					throw new InvalidAttributeError("path", definition.path);
-				}
+				const { wireName, secure, path } = resolveWire(name, definition);
 
 				if (
-					definition?.maxAge !== undefined &&
-					!isValidMaxAge(definition.maxAge)
+					definition?.secret !== undefined &&
+					(typeof definition.secret !== "string" ||
+						definition.secret.length === 0)
 				) {
-					throw new InvalidAttributeError("maxAge", String(definition.maxAge));
+					throw new InvalidAttributeError("secret", String(definition.secret));
 				}
 
-				if (definition?.priority) {
-					const lower = lowercase(definition.priority);
-
-					if (!VALID_PRIORITY_VALUES.includes(lower)) {
-						throw new InvalidAttributeError(
-							"priority",
-							lower,
-							VALID_PRIORITY_VALUES,
-						);
-					}
-				}
-
-				if (definition?.sameSite) {
-					const lower = lowercase(definition.sameSite);
-
-					if (!VALID_SAME_SITE_VALUES.includes(lower)) {
-						throw new InvalidAttributeError(
-							"SameSite",
-							lower,
-							VALID_SAME_SITE_VALUES,
-						);
-					}
-				}
+				validateAttributes(wireName, {
+					...definition,
+					secure: definition?.secure ?? secure,
+					path: definition?.path ?? path,
+				});
 
 				cookies[name] = { ...definition };
 				Object.freeze(cookies[name]);
@@ -204,25 +189,24 @@ export class Fami<
 		value: CookieValue,
 		attributes?: CookieAttributes,
 	): MaybePromise<string> {
-		if (!this.#cookies[name]) {
-			console.warn(
-				`Unregistered cookie name (${name}) was used. Consider registering it in your Fami instance for better type safety and default attributes.`,
-			);
-		}
+		const definition = this.#cookies[name];
+		const { wireName, secure, path } = resolveWire(name, definition);
 
 		const attribute = {
-			...(this.#cookies[name] ?? {}),
+			...definition,
 			...attributes,
-			expires: attributes?.expires ?? this.#cookies[name]?.expires?.(),
+			secure: attributes?.secure ?? definition?.secure ?? secure,
+			path: attributes?.path ?? definition?.path ?? path,
+			expires: attributes?.expires ?? definition?.expires?.(),
 		};
 
 		if (attribute.secret) {
-			return signPipeline(attribute.secret, String(value)).then((signed) =>
-				serializeRaw(name, signed, attribute),
+			return signPipeline(this.#getKey(attribute.secret), String(value)).then(
+				(signed) => serializeRaw(wireName, signed, attribute),
 			);
 		}
 
-		return serializeRaw(name, value, attribute);
+		return serializeRaw(wireName, value, attribute);
 	}
 
 	/**
@@ -239,29 +223,11 @@ export class Fami<
 		const cookies = newObject<FamiCookies<CookieName, Definition>>();
 
 		for (const name of keys(this.#cookies)) {
-			cookies[name] = this.parseOne(name, parsed[name]);
+			const { wireName } = resolveWire(name, this.#cookies[name]);
+			cookies[name] = this.#parseOne(name, parsed[wireName]);
 		}
 
 		return cookies;
-	}
-
-	private parseOne<Name extends CookieName>(
-		name: Name,
-		raw: string | undefined,
-	): PromiseIfSecret<Name, Definition, string | undefined>;
-	private parseOne(
-		name: CookieName,
-		raw: string | undefined,
-	): MaybePromise<string | undefined> {
-		const secret = this.#cookies[name]?.secret;
-
-		if (secret) {
-			return verifyPipeline(secret, raw).then((v) =>
-				v === false ? undefined : v,
-			);
-		}
-
-		return raw;
 	}
 
 	/**
@@ -309,8 +275,33 @@ export class Fami<
 	/**
 	 * All registered cookies
 	 */
-	get cookies(): Definition {
+	get cookies(): Readonly<Definition> {
 		return this.#cookies;
+	}
+
+	#getKey(secret: string): Promise<CryptoKey> {
+		let key = this.#keyCache.get(secret);
+		if (!key) {
+			key = importKey(secret);
+			this.#keyCache.set(secret, key);
+		}
+		return key;
+	}
+
+	#parseOne<Name extends CookieName>(
+		name: Name,
+		raw: string | undefined,
+	): PromiseIfSecret<Name, Definition, string | undefined>;
+	#parseOne(
+		name: CookieName,
+		raw: string | undefined,
+	): MaybePromise<string | undefined> {
+		const secret = this.#cookies[name]?.secret;
+
+		if (!secret) return raw;
+		if (!raw) return Promise.resolve(undefined);
+
+		return verifyPipeline(this.#getKey(secret), raw);
 	}
 }
 
