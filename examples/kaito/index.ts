@@ -7,7 +7,7 @@ const kaito = create({
 	}),
 }).pipe(
 	fami({
-		session: { maxAge: 60 * 60 },
+		session: { maxAge: 60 * 60, prefix: "secure" },
 	}),
 );
 
