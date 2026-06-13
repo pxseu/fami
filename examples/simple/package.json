@@ -1,4 +1,6 @@
 {
+	"name": "@examples/simple",
+	"private": true,
 	"scripts": {
 		"dev": "bun --watch index.ts"
 	},
@@ -7,6 +9,6 @@
 		"typescript": "^6.0.3"
 	},
 	"dependencies": {
-		"fami": "^2.0.5"
+		"fami": "workspace:*"
 	}
 }

@@ -42,13 +42,17 @@ jobs:
       - run: bun install --frozen-lockfile
       # build + test
       - run: bun run prepublishOnly
+        working-directory: packages/fami
       # pipe through xargs to remove whitespace
       - run: echo "FILE_NAME=$(bun pm pack --quiet | xargs)" >> $GITHUB_ENV
+        working-directory: packages/fami
       # https://github.com/oven-sh/bun/issues/15601 - provenance is not supported yet by bun :(
       - run: npm publish $FILE_NAME --provenance --ignore-scripts --tag ${{ steps.tag.outputs.npm_tag }}
+        working-directory: packages/fami
       - run: >-
           gh release create ${{ steps.tag.outputs.version_tag }} $FILE_NAME
           --generate-notes
           ${{ steps.tag.outputs.pre_release == 'true' && '--prerelease' || '' }}
+        working-directory: packages/fami
         env:
           GH_TOKEN: ${{ github.token }}

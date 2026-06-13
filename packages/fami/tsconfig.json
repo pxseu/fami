@@ -23,8 +23,8 @@
 		// Some stricter flags (disabled by default)
 		"noUnusedLocals": false,
 		"noUnusedParameters": false,
-		"noPropertyAccessFromIndexSignature": false
+		"noPropertyAccessFromIndexSignature": false,
 	},
 	"include": ["src/**/*.ts", "tsdown.config.ts"],
-	"exclude": ["coverage", "dist", "examples", "node_modules"]
+	"exclude": ["coverage", "dist", "examples", "node_modules"],
 }

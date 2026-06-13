@@ -1,6 +1,10 @@
 # dependencies (bun install)
 node_modules
 
+# copied into the package by `prepack` (canonical copies live at the repo root)
+packages/fami/README.md
+packages/fami/LICENSE
+
 # output
 out
 dist

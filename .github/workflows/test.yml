@@ -23,5 +23,6 @@ jobs:
       - run: bun install --frozen-lockfile
       # try run will run the tests and build the package, and list the files that would be published
       - run: bun publish --dry-run
+        working-directory: packages/fami
         env:
           NPM_CONFIG_TOKEN: "stub"

@@ -1,101 +1,22 @@
 {
-	"name": "fami",
-	"version": "2.0.5",
+	"name": "fami-monorepo",
+	"private": true,
 	"license": "MIT",
-	"description": "Working with cookies shouldn't be complicated or scary.",
-	"type": "module",
 	"author": "pxseu",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/pxseu/fami.git"
-	},
-	"homepage": "https://github.com/pxseu/fami#readme",
-	"bugs": {
-		"url": "https://github.com/pxseu/fami/issues"
-	},
-	"funding": {
-		"type": "github",
-		"url": "https://github.com/sponsors/pxseu"
-	},
-	"sideEffects": false,
-	"exports": {
-		"./package.json": "./package.json",
-		".": {
-			"import": {
-				"types": "./dist/index.d.ts",
-				"default": "./dist/index.js"
-			},
-			"require": {
-				"types": "./dist/index.d.cts",
-				"default": "./dist/index.cjs"
-			}
-		},
-		"./kaito": {
-			"import": {
-				"types": "./dist/kaito.d.ts",
-				"default": "./dist/kaito.js"
-			},
-			"require": {
-				"types": "./dist/kaito.d.cts",
-				"default": "./dist/kaito.cjs"
-			}
-		},
-		"./express": {
-			"import": {
-				"types": "./dist/express.d.ts",
-				"default": "./dist/express.js"
-			},
-			"require": {
-				"types": "./dist/express.d.cts",
-				"default": "./dist/express.cjs"
-			}
-		}
-	},
-	"scripts": {
-		"build": "bun --bun tsdown",
-		"test": "bun test --coverage",
-		"typecheck": "tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
-		"t": "bun run test",
-		"tc": "bun run typecheck",
-		"prepublishOnly": "bun run typecheck && bun run build && bun run test"
-	},
-	"engines": {
-		"node": ">=25",
-		"bun": ">=1.1.22",
-		"deno": ">=2.5.0"
-	},
-	"keywords": [
-		"cookie",
-		"cookies",
-		"parser",
-		"serialize",
-		"rfc6265",
-		"http",
-		"headers"
+	"type": "module",
+	"workspaces": [
+		"packages/*",
+		"examples/*"
 	],
+	"scripts": {
+		"build": "bun run --filter fami build",
+		"dev": "bun run --filter fami dev",
+		"test": "bun run --filter fami test",
+		"typecheck": "bun run --filter fami typecheck",
+		"t": "bun run test",
+		"tc": "bun run typecheck"
+	},
 	"devDependencies": {
-		"@types/bun": "1.3.13",
-		"@types/express": "^5.0.6",
-		"prettier": "^3.8.4",
-		"tsdown": "^0.22.2",
-		"typescript": "^6.0.3"
-	},
-	"peerDependencies": {
-		"typescript": "^5 || ^6",
-		"@types/express": ">=5"
-	},
-	"peerDependenciesMeta": {
-		"typescript": {
-			"optional": true
-		},
-		"@types/express": {
-			"optional": true
-		}
-	},
-	"files": [
-		"package.json",
-		"README.md",
-		"LICENSE",
-		"dist"
-	]
+		"prettier": "^3.8.4"
+	}
 }

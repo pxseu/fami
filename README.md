@@ -306,13 +306,35 @@ fami was inspired by the following libraries:
 
 Although **fami** is runtime-agnostic, it is developed and tested with Bun. Using Bun for local development is recommended.
 
+The repository is a Bun workspace monorepo: the library lives in [`packages/fami`](./packages/fami), and every project in [`examples/`](./examples) depends on it via `workspace:*`, so the examples always run against your local build instead of the published package.
+
 ```bash
-# install deps
+# install deps for every workspace package
 bun install
 
 # dry-run the publish flow to see what would be published
 # this also builds the package and runs the test suite
+cd packages/fami
 NPM_CONFIG_TOKEN=stub bun publish --dry-run
+```
+
+### Running examples
+
+The examples import the built output, so build the library first (or leave a watcher running while you hack on it):
+
+```bash
+# one-off build...
+bun run build
+
+# ...or rebuild on every change
+bun run dev
+```
+
+Then start any example:
+
+```bash
+cd examples/simple
+bun dev
 ```
 
 ### Testing
