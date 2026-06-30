@@ -36,19 +36,24 @@ export interface FamiContext<
 	): PromiseIfSecret<Name, Defs, void>;
 }
 
+// biome-ignore lint/suspicious/noConfusingVoidType: this is a return type of a function
+type NullishReturn = null | undefined | void;
+
 export type FamiPipeInput<
 	C,
 	Names extends string,
 	Defs extends FamiInput<Names>,
-> = C extends null | undefined ? C : NoOverlap<C, FamiContext<Names, Defs>> & C;
+> = C extends NullishReturn
+	? C
+	: C extends Record<string | symbol | number, unknown>
+		? NoOverlap<C, FamiContext<Names, Defs>> & C
+		: never;
 
 export type FamiPipeOutput<
 	C,
 	Names extends string,
 	Defs extends FamiInput<Names>,
-> = C extends null | undefined
-	? FamiContext<Names, Defs>
-	: C & FamiContext<Names, Defs>;
+> = C extends NullishReturn ? FamiContext<Names, Defs> : C & FamiContext<Names, Defs>;
 
 export type FamiPipeContext<
 	Names extends string,
@@ -134,7 +139,7 @@ export function fami<
 		function buildContext<C>(
 			input: FamiPipeInput<C, CookieName, Defs>,
 		): FamiPipeOutput<C, CookieName, Defs>;
-		function buildContext(input: object | null | undefined) {
+		function buildContext(input: object | NullishReturn) {
 			return {
 				...(input ?? {}),
 				get fami() {
