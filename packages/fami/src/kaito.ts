@@ -45,7 +45,7 @@ export type FamiPipeInput<
 	Defs extends FamiInput<Names>,
 > = C extends NullishReturn
 	? C
-	: C extends Record<string | symbol | number, unknown>
+	: C extends object
 		? NoOverlap<C, FamiContext<Names, Defs>> & C
 		: never;
 
@@ -53,12 +53,14 @@ export type FamiPipeOutput<
 	C,
 	Names extends string,
 	Defs extends FamiInput<Names>,
-> = C extends NullishReturn ? FamiContext<Names, Defs> : C & FamiContext<Names, Defs>;
+> = C extends NullishReturn
+	? FamiContext<Names, Defs>
+	: C & FamiContext<Names, Defs>;
 
 export type FamiPipeContext<
 	Names extends string,
 	Defs extends FamiInput<Names>,
-> = <C, P>(
+> = <C extends object | NullishReturn, P>(
 	context: FamiPipeInput<C, Names, Defs>,
 	params: P,
 	req: KaitoRequestStub,
@@ -100,7 +102,7 @@ export function fami<
 ): FamiPipeContext<CookieName, Defs> {
 	const f = cookieInit instanceof Fami ? cookieInit : new Fami(cookieInit);
 
-	return <C, P>(
+	return <C extends object | NullishReturn, P>(
 		context: FamiPipeInput<C, CookieName, Defs>,
 		_params: P,
 		req: KaitoRequestStub,
@@ -116,23 +118,15 @@ export function fami<
 			head.headers.append("Set-Cookie", header);
 		}
 
-		function setCookie<Name extends CookieName>(
-			name: Name,
-			value: CookieValue,
-			attributes?: CookieAttributes,
-		): PromiseIfSecret<Name, Defs, void>;
 		function setCookie(
 			name: CookieName,
 			value: CookieValue,
 			attributes?: CookieAttributes,
-		): MaybePromise<void> {
+		) {
 			return appendHeader(f.serialize(name, value, attributes));
 		}
 
-		function deleteCookie<Name extends CookieName>(
-			name: Name,
-		): PromiseIfSecret<Name, Defs, void>;
-		function deleteCookie(name: CookieName): MaybePromise<void> {
+		function deleteCookie(name: CookieName) {
 			return appendHeader(f.delete(name));
 		}
 
