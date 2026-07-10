@@ -38,7 +38,7 @@ jobs:
         with:
           bun-version: "latest"
           registries: |
-            "https://registry.npmjs.org"
+            https://registry.npmjs.org
 
       - run: bun install --frozen-lockfile
       # build + test
